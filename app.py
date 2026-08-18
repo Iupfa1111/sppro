@@ -208,7 +208,7 @@ def generar_pdf_evento(edificio, direccion, fecha_hora, clima, altura, accesos, 
     pdf.set_font("Arial", "B", 10)
     pdf.cell(200, 6, txt="Firma Operador a Cargo: ________", ln=True)
     
-    return pdf.output(dest="S").encode("latin1")
+    return pdf.output(dest="S").encode("utf-8")
 
 # ==========================================
 # 6. LOGIN
