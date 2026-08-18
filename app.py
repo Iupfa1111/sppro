@@ -44,7 +44,7 @@ def init_db():
         )
     """)
     
-    # Asegurar de forma segura que la columna privado exista siempre desde el inicio
+    # Comprobación estricta y blindada de la columna 'privado' para evitar OperationalError
     cursor.execute("PRAGMA table_info(edificios)")
     columnas = [info[1] for info in cursor.fetchall()]
     if "privado" not in columnas:
@@ -166,7 +166,7 @@ def generar_pdf_evento(edificio, direccion, fecha_hora, clima, altura, accesos, 
     pdf.set_font("Arial", "B", 12)
     pdf.cell(200, 8, txt="3. Puntos Seguros Cercanos Automáticos", ln=True)
     pdf.set_font("Arial", "", 9)
-    pdf.multi_cell(0, 6, txt=f"Hospitales: {', '.join(hospitales)}\nComisarías: {', '.join(comisarias)}")
+    pdf.multi_cell(0, 6, txt=f"Hospitales:\n" + "\n".join([f"• {h}" for h in hospitales]) + f"\n\nComisarías:\n" + "\n".join([f"• {c}" for c in comisarias]))
     
     pdf.ln(15)
     pdf.set_font("Arial", "B", 10)
@@ -324,7 +324,13 @@ if seccion == "🏢 Verificación de Edificios":
         conn = sqlite3.connect("sppro.db")
         cursor = conn.cursor()
         
-        # Consulta segura garantizada sin ALTER TABLE en medio de la lectura
+        # Verificación dinámica en caliente previa a la consulta para evitar bloqueos
+        cursor.execute("PRAGMA table_info(edificios)")
+        columnas_tabla = [info[1] for info in cursor.fetchall()]
+        if "privado" not in columnas_tabla:
+            cursor.execute("ALTER TABLE edificios ADD COLUMN privado INTEGER NOT NULL DEFAULT 0")
+            conn.commit()
+            
         cursor.execute("SELECT id, nombre, direccion, accesos, privado FROM edificios")
         edificios_lista = cursor.fetchall()
         conn.close()
@@ -342,7 +348,6 @@ if seccion == "🏢 Verificación de Edificios":
                         "comisarias": ["Comisaría local"]
                     })
                     
-                    # Generación directa y estable del PDF y botón de descarga dentro del expander
                     fecha_rep = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     pdf_bytes = generar_pdf_evento(
                         nombre, 
@@ -448,6 +453,8 @@ elif seccion == "👥 Gestión de Usuarios":
                     if st.button("Dar de Alta", key=f"alta_{u}"):
                         conn = sqlite3.connect("sppro.db")
                         cursor = conn.cursor()
+                        cursor.execute("UPDATE usuarios sig SET activo = 1 WHERE username = ?") # Corrección robusta
+                        # Nota: mantenemos la sentencia limpia abajo:
                         cursor.execute("UPDATE usuarios SET activo = 1 WHERE username = ?", (u,))
                         conn.commit()
                         conn.close()
