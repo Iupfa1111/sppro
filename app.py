@@ -7,7 +7,7 @@ from fpdf import FPDF
 st.set_page_config(page_title="SPPRO by Angel Ibañez", layout="wide")
 
 # ==========================================
-# 1. GESTIÓN DE BASE DE DATOS (AUTO-ACTUALIZADA)
+# BASE DE DATOS INTELIGENTE Y AUTOREPARABLE
 # ==========================================
 def init_db():
     conn = sqlite3.connect("sppro.db")
@@ -22,7 +22,6 @@ def init_db():
         )
     """)
     
-    # Tabla de edificios con manejo seguro de columnas
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS edificios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,12 +44,12 @@ def init_db():
         )
     """)
     
-    # Asegurar compatibilidad si la tabla ya existía sin la columna 'privado'
+    # Blindaje ante tablas existentes sin columnas nuevas
     try:
         cursor.execute("ALTER TABLE edificios ADD COLUMN privado INTEGER NOT NULL DEFAULT 0")
     except:
         pass
-    
+        
     cursor.execute("SELECT COUNT(*) FROM usuarios")
     if cursor.fetchone()[0] == 0:
         cursor.execute("INSERT INTO usuarios VALUES (?, ?, ?, ?)", ("admin", "admin123", 1, "Administrador"))
@@ -62,7 +61,22 @@ def init_db():
 init_db()
 
 # ==========================================
-# ESTADOS DE SESIÓN Y CONFIGURACIÓN
+# DICCIONARIO DE EDIFICIOS Y LUGARES DE RENOMBRE
+# ==========================================
+LUGARES_RENOMBRE = {
+    "Congreso de la Nación": "Av. Rivadavia 1864, CABA",
+    "Hotel Hilton": "Macacha Güemes 351, Puerto Madero, CABA",
+    "Casa Rosada": "Balcarce 50, CABA",
+    "Teatro Colón": "Cerrito 628, CABA",
+    "Palacio Barolo": "Av. de Mayo 1370, CABA",
+    "Hotel Alvear": "Av. Alvear 1891, Recoleta, CABA",
+    "Sheraton Buenos Aires Hotel": "San Martín 1225, Retiro, CABA",
+    "Luna Park": "Av. Madero 420, CABA",
+    "Torre Monumental (De los Ingleses)": "Av. Dr. José María Ramos Mejía 1315, Retiro"
+}
+
+# ==========================================
+# ESTADOS DE SESIÓN
 # ==========================================
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
@@ -70,23 +84,24 @@ if "logged_in" not in st.session_state:
     st.session_state["username"] = None
 
 # ==========================================
-# FUNCIONES DE REPORTE PDF
+# GENERADOR DE PDF
 # ==========================================
-def generar_pdf_evento(edificio, fecha_hora, clima, altura, accesos):
+def generar_pdf_evento(edificio, direccion, fecha_hora, clima, altura, accesos):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", "B", 16)
     
     pdf.cell(200, 10, txt="SPPRO - REPORTE DE VERIFICACIÓN DE EDIFICIO", ln=True, align="C")
     pdf.set_font("Arial", "", 10)
-    pdf.cell(200, 6, txt=f"Sistema de Seguridad Patrimonial by Angel Ibañez", ln=True, align="C")
+    pdf.cell(200, 6, txt="Sistema de Seguridad Patrimonial by Angel Ibañez", ln=True, align="C")
     pdf.line(10, 25, 200, 25)
     
     pdf.ln(10)
     pdf.set_font("Arial", "B", 12)
     pdf.cell(200, 8, txt="1. Datos del Evento y Contexto", ln=True)
     pdf.set_font("Arial", "", 10)
-    pdf.cell(200, 6, txt=f"- Edificio Verificado: {edificio}", ln=True)
+    pdf.cell(200, 6, txt=f"- Edificio / Sitio: {edificio}", ln=True)
+    pdf.cell(200, 6, txt=f"- Dirección: {direccion}", ln=True)
     pdf.cell(200, 6, txt=f"- Fecha y Hora: {fecha_hora}", ln=True)
     pdf.cell(200, 6, txt=f"- Condición Climática: {clima}", ln=True)
     pdf.cell(200, 6, txt=f"- Altura sobre el nivel del mar: {altura}", ln=True)
@@ -104,7 +119,7 @@ def generar_pdf_evento(edificio, fecha_hora, clima, altura, accesos):
     return pdf.output(dest="S").encode("latin1")
 
 # ==========================================
-# CONTROL DE ACCESO (LOGIN)
+# LOGIN
 # ==========================================
 if not st.session_state["logged_in"]:
     st.title("SPPRO")
@@ -165,14 +180,26 @@ if seccion == "🏢 Verificación de Edificios":
     
     with tab_reg:
         with st.form("form_verif_edificio"):
-            nombre_edf = st.text_input("Nombre / Código del Edificio")
-            direccion_edf = st.text_input("Dirección y Localidad")
+            st.markdown("### 🏛️ Selección o Ingreso del Edificio / Hotel")
+            
+            # Selector inteligente de edificios conocidos
+            tipo_ingreso = st.radio("¿Cómo desea identificar el lugar?", ["Seleccionar un edificio/hotel de renombre", "Ingresar nombre personalizado manualmente"])
+            
+            direccion_automatica = ""
+            if tipo_ingreso == "Seleccionar un edificio/hotel de renombre":
+                nombre_seleccionado = st.selectbox("Elija el punto conocido:", list(LUGARES_RENOMBRE.keys()))
+                nombre_edf = nombre_seleccionado
+                direccion_edf = LUGARES_RENOMBRE[nombre_seleccionado]
+                st.info(f"📍 Dirección autocompletada por el sistema: *{direccion_edf}*")
+            else:
+                nombre_edf = st.text_input("Nombre / Código del Edificio")
+                direccion_edf = st.text_input("Dirección y Localidad")
             
             st.markdown("### 🚪 Entradas, Salidas y Accesos")
             accesos_edf = st.text_area("Detallar accesos principales, salidas de emergencia, portones y zonas vulnerables:")
             
             st.markdown("### 📷 Soporte Visual y Documentación")
-            tipo_carga = st.radio("¿Cómo desea adjuntar la imagen de referencia?", ["Subir foto desde la cámara / dispositivo", "Cargar captura o imagen de Google Maps"])
+            st.radio("¿Cómo desea adjuntar la imagen de referencia?", ["Subir foto desde la cámara / dispositivo", "Cargar captura o imagen de Google Maps"])
             archivo_imagen = st.file_uploader("Seleccionar archivo de imagen", type=["jpg", "png", "jpeg"])
             
             st.markdown("### 📊 Datos Ambientales y Contextuales (Para el Reporte)")
@@ -190,6 +217,19 @@ if seccion == "🏢 Verificación de Edificios":
                     
                     conn = sqlite3.connect("sppro.db")
                     cursor = conn.cursor()
+                    
+                    # Asegurar estructura limpia en tiempo de ejecución
+                    cursor.execute("""
+                        CREATE TABLE IF NOT EXISTS edificios (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            nombre TEXT NOT NULL,
+                            direccion TEXT NOT NULL,
+                            accesos TEXT,
+                            imagen_path TEXT,
+                            privado INTEGER NOT NULL DEFAULT 0
+                        )
+                    """)
+                    
                     cursor.execute("INSERT INTO edificios (nombre, direccion, accesos, imagen_path, privado) VALUES (?, ?, ?, ?, ?)",
                                    (nombre_edf, direccion_edf, accesos_edf, path_img, 1 if es_privado else 0))
                     
@@ -201,7 +241,7 @@ if seccion == "🏢 Verificación de Edificios":
                     conn.close()
                     st.success("✅ Edificio verificado y registrado con éxito en el historial.")
                 else:
-                    st.error("⚠️ Complete al menos el nombre y la dirección del edificio.")
+                    st.error("⚠️ Complete o seleccione un edificio válido.")
 
     with tab_cons:
         st.subheader("📋 Edificios Registrados y Generación de Reportes")
@@ -214,12 +254,14 @@ if seccion == "🏢 Verificación de Edificios":
         if edificios_lista:
             for edf_id, nombre, direccion, accesos, privado in edificios_lista:
                 with st.expander(f"🏢 {nombre} - {direccion} ({'Privado' if privado else 'Público'})"):
+                    st.write(f"*Dirección:* {direccion}")
                     st.write(f"*Accesos y Salidas:* {accesos}")
                     
                     if st.button(f"📥 Generar Reporte PDF de {nombre}", key=f"pdf_{edf_id}"):
                         fecha_rep = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         pdf_bytes = generar_pdf_evento(
                             nombre, 
+                            direccion,
                             fecha_rep, 
                             "Condición Normal / Registrada", 
                             "25 msnm", 
