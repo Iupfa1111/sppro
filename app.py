@@ -18,7 +18,6 @@ def init_db():
   conn = sqlite3.connect("sppro.db")
   cursor = conn.cursor()
 
-  # Tabla de Usuarios
   cursor.execute("""
         CREATE TABLE IF NOT EXISTS usuarios (
             username TEXT PRIMARY KEY,
@@ -28,7 +27,6 @@ def init_db():
         )
     """)
 
-  # Tabla de Edificios
   cursor.execute("""
         CREATE TABLE IF NOT EXISTS edificios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -40,7 +38,6 @@ def init_db():
         )
     """)
 
-  # Tabla de Historial de Rutas
   cursor.execute("""
         CREATE TABLE IF NOT EXISTS historial_rutas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -53,7 +50,6 @@ def init_db():
         )
     """)
 
-  # Tabla de Rutas Frecuentes
   cursor.execute("""
         CREATE TABLE IF NOT EXISTS rutas_frecuentes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -63,7 +59,6 @@ def init_db():
         )
     """)
 
-  # Tabla de Zonas de Riesgo / Cortes
   cursor.execute("""
         CREATE TABLE IF NOT EXISTS zonas_riesgo (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -74,7 +69,6 @@ def init_db():
         )
     """)
 
-  # Insertar usuarios por defecto si está vacía
   cursor.execute("SELECT COUNT(*) FROM usuarios")
   if cursor.fetchone()[0] == 0:
     cursor.execute(
@@ -86,7 +80,6 @@ def init_db():
         ("operador1", "user123", 1, "Operador"),
     )
 
-  # Insertar edificio inicial si está vacía
   cursor.execute("SELECT COUNT(*) FROM edificios")
   if cursor.fetchone()[0] == 0:
     cursor.execute(
@@ -142,8 +135,18 @@ def buscar_direcciones_similares(query):
   if not query or len(query.strip()) < 3:
     return []
 
-  # Normaliza conectores de intersecciones (" y ") o deja intactas las alturas
-  query_procesado = query.lower().replace(" y ", ", ")
+  query_limpio = query.lower().strip()
+  if " y " in query_limpio:
+    query_procesado = query_limpio.replace(" y ", ", ")
+  else:
+    query_procesado = query_limpio
+
+  if (
+      "buenos aires" not in query_procesado
+      and "caba" not in query_procesado
+      and "argentina" not in query_procesado
+  ):
+    query_procesado = f"{query_procesado}, Buenos Aires, Argentina"
 
   try:
     url = "https://nominatim.openstreetmap.org/search"
@@ -159,8 +162,27 @@ def buscar_direcciones_similares(query):
 
     opciones = []
     for item in res:
+      direccion_formateada = item.get("display_name", "Ubicación desconocida")
+      address = item.get("address", {})
+      calle = address.get("road", "")
+      numero = address.get("house_number", "")
+      barrio_o_ciudad = (
+          address.get("city")
+          or address.get("town")
+          or address.get("suburb")
+          or address.get("county", "")
+      )
+
+      etiqueta_visual = f"{calle}"
+      if numero:
+        etiqueta_visual += f" {numero}"
+      if barrio_o_ciudad:
+        etiqueta_visual += f" ({barrio_o_ciudad})"
+      else:
+        etiqueta_visual += f" - {direccion_formateada}"
+
       opciones.append({
-          "display_name": item.get("display_name", "Ubicación desconocida"),
+          "display_name": etiqueta_visual,
           "lat": float(item["lat"]),
           "lon": float(item["lon"]),
       })
@@ -169,12 +191,48 @@ def buscar_direcciones_similares(query):
     return []
 
 
-def obtener_ruta_terrestre(lat_orig, lon_orig, lat_dest, lon_dest):
+def obtener_direccion_inversa(lat, lon):
+  """Geocodificación inversa: Convierte coordenadas de un clic en dirección legible."""
   try:
-    url = f"http://router.project-osrm.org/route/v1/driving/{lon_orig},{lat_orig};{lon_dest},{lat_dest}?overview=full&geometries=geojson&steps=true"
+    url = "https://nominatim.openstreetmap.org/reverse"
+    params = {"lat": lat, "lon": lon, "format": "json", "addressdetails": 1}
+    headers = {"User-Agent": "SPPRO_App_AngelIbanez"}
+    res = requests.get(url, params=params, headers=headers, timeout=5).json()
+    if "display_name" in res:
+      address = res.get("address", {})
+      calle = address.get("road", "")
+      numero = address.get("house_number", "")
+      ciudad = (
+          address.get("city")
+          or address.get("town")
+          or address.get("suburb")
+          or ""
+      )
+      base = f"{calle} {numero}".strip()
+      if ciudad:
+        base += f" ({ciudad})"
+      return base if base else res["display_name"]
+  except:
+    pass
+  return f"Lat: {lat:.4f}, Lon: {lon:.4f}"
+
+
+def obtener_ruta_terrestre(
+    lat_orig, lon_orig, lat_dest, lon_dest, tipo_ruta="principal"
+):
+  """Calcula rutas reales y dinámicas mediante OSRM (Incluye alternativas)."""
+  try:
+    # Si es alternativa, forzamos parámetros de desvío (waypoints desplazados o rutas alternativas de OSRM)
+    alternatives = "true" if tipo_ruta in ["plan_b", "plan_c"] else "false"
+    url = f"http://router.project-osrm.org/route/v1/driving/{lon_orig},{lat_orig};{lon_dest},{lat_dest}?overview=full&geometries=geojson&steps=true&alternatives={alternatives}"
     res = requests.get(url, timeout=6).json()
+
     if res.get("code") == "Ok":
-      route = res["routes"][0]
+      routes = res["routes"]
+      # Seleccionamos la ruta principal (índice 0) o la alternativa (índice 1 si existe)
+      route_idx = 1 if (tipo_ruta != "principal" and len(routes) > 1) else 0
+      route = routes[route_idx]
+
       geometry = route["geometry"]["coordinates"]
       puntos_ruta = [[p[1], p[0]] for p in geometry]
       pasos = []
@@ -218,10 +276,9 @@ def verificar_zonas_riesgo(lat, lon):
 
   alertas = []
   for desc, z_lat, z_lon, radio in zonas:
-    # Cálculo aproximado de distancia en km (fórmula simple de diferencias)
     distancia_aprox = (
         (lat - z_lat) * 2 + (lon - z_lon) * 2
-    ) ** 0.5 * 111  # 1 grado aprox 111km
+    ) ** 0.5 * 111
     if distancia_aprox <= radio:
       alertas.append(desc)
   return alertas
@@ -299,7 +356,6 @@ if seccion == "🗺️ Planificación de Rutas":
     lat_gps = loc["coords"]["latitude"]
     lon_gps = loc["coords"]["longitude"]
 
-  # Cargar Rutas Frecuentes guardadas
   conn = sqlite3.connect("sppro.db")
   df_frecuentes = pd.read_sql_query(
       "SELECT * FROM rutas_frecuentes", conn
@@ -318,6 +374,11 @@ if seccion == "🗺️ Planificación de Rutas":
         st.session_state["input_origen_val"] = fila["origen"]
         st.session_state["input_destino_val"] = fila["destino"]
         st.rerun()
+
+  # Sección de interacción por clic en el mapa (Geocodificación Inversa)
+  if "clicked_lat" not in st.session_state:
+    st.session_state["clicked_lat"] = None
+    st.session_state["clicked_lon"] = None
 
   col_orig, col_dest = st.columns(2)
 
@@ -376,10 +437,28 @@ if seccion == "🗺️ Planificación de Rutas":
           " destino."
       )
 
+  # Panel auxiliar si se hizo clic en el mapa
+  if st.session_state["clicked_lat"] and st.session_state["clicked_lon"]:
+    lat_c = st.session_state["clicked_lat"]
+    lon_c = st.session_state["clicked_lon"]
+    dir_inversa = obtener_direccion_inversa(lat_c, lon_c)
+    st.info(
+        f"📍 *Punto seleccionado en el mapa:* {dir_inversa} (Lat: {lat_c:.4f},"
+        " Lon: {lon_c:.4f})"
+    )
+    col_ic1, col_ic2 = st.columns(2)
+    with col_ic1:
+      if st.button("Usar como Origen"):
+        st.session_state["input_origen_val"] = dir_inversa
+        st.rerun()
+    with col_ic2:
+      if st.button("Usar como Destino"):
+        st.session_state["input_destino_val"] = dir_inversa
+        st.rerun()
+
   st.divider()
 
   if coords_orig and coords_dest:
-    # Verificación de Alertas por Zonas de Riesgo
     alertas_origen = verificar_zonas_riesgo(coords_orig[0], coords_orig[1])
     alertas_destino = verificar_zonas_riesgo(coords_dest[0], coords_dest[1])
     if alertas_origen or alertas_destino:
@@ -451,9 +530,32 @@ if seccion == "🗺️ Planificación de Rutas":
             conn.close()
             st.success("✅ Ruta frecuente guardada.")
 
-    puntos_terrestres, pasos_calles = obtener_ruta_terrestre(
-        coords_orig[0], coords_orig[1], coords_dest[0], coords_dest[1]
-    )
+    # Selección dinámica del tipo de ruta según el plan activo
+    plan = st.session_state["plan_activo"]
+    if plan == "Plan A":
+      puntos_terrestres, pasos_calles = obtener_ruta_terrestre(
+          coords_orig[0],
+          coords_orig[1],
+          coords_dest[0],
+          coords_dest[1],
+          tipo_ruta="principal",
+      )
+    elif plan == "Plan B":
+      puntos_terrestres, pasos_calles = obtener_ruta_terrestre(
+          coords_orig[0],
+          coords_orig[1],
+          coords_dest[0],
+          coords_dest[1],
+          tipo_ruta="plan_b",
+      )
+    else:  # Plan C
+      puntos_terrestres, pasos_calles = obtener_ruta_terrestre(
+          coords_orig[0],
+          coords_orig[1],
+          coords_dest[0],
+          coords_dest[1],
+          tipo_ruta="plan_c",
+      )
 
     centro_mapa = [
         (coords_orig[0] + coords_dest[0]) / 2,
@@ -472,7 +574,6 @@ if seccion == "🗺️ Planificación de Rutas":
         icon=folium.Icon(color="red", icon="flag"),
     ).add_to(m)
 
-    plan = st.session_state["plan_activo"]
     if plan == "Plan A":
       if puntos_terrestres:
         folium.PolyLine(
@@ -482,41 +583,42 @@ if seccion == "🗺️ Planificación de Rutas":
             opacity=0.85,
             popup="Plan A: Ruta Principal",
         ).add_to(m)
-      else:
-        folium.PolyLine(
-            [coords_orig, centro_mapa, coords_dest], color="blue", weight=5
-        ).add_to(m)
     elif plan == "Plan B":
-      desvio_b = [
-          coords_orig,
-          [coords_orig[0] + 0.003, coords_orig[1] - 0.003],
-          coords_dest,
-      ]
-      folium.PolyLine(
-          desvio_b,
-          color="orange",
-          weight=6,
-          opacity=0.9,
-          popup="Plan B: Ruta Alternativa por Choque",
-      ).add_to(m)
+      if puntos_terrestres:
+        folium.PolyLine(
+            puntos_terrestres,
+            color="orange",
+            weight=6,
+            opacity=0.9,
+            popup="Plan B: Ruta Alternativa Real por Choque",
+        ).add_to(m)
+      st.warning("⚠️ Mostrando Ruta Alternativa Real por Siniestro (Plan B).")
     elif plan == "Plan C":
-      desvio_c = [
-          coords_orig,
-          [coords_orig[0] - 0.004, coords_orig[1] + 0.004],
-          coords_dest,
-      ]
-      folium.PolyLine(
-          desvio_c,
-          color="red",
-          weight=6,
-          opacity=0.9,
-          popup="Plan C: Ruta Alternativa por Corte",
-      ).add_to(m)
+      if puntos_terrestres:
+        folium.PolyLine(
+            puntos_terrestres,
+            color="red",
+            weight=6,
+            opacity=0.9,
+            popup="Plan C: Ruta Perimetral Alternativa Real por Bloqueo",
+        ).add_to(m)
+      st.error("🚨 Mostrando Ruta Perimetral Real por Bloqueo (Plan C).")
 
-    st_folium(m, width=1100, height=480)
+    # Renderizar mapa interactivo y capturar clics (Geocodificación inversa)
+    map_data = st_folium(m, width=1100, height=480)
+    if map_data and map_data.get("last_clicked"):
+      click_lat = map_data["last_clicked"]["lat"]
+      click_lon = map_data["last_clicked"]["lng"]
+      if (
+          st.session_state["clicked_lat"] != click_lat
+          or st.session_state["clicked_lon"] != click_lon
+      ):
+        st.session_state["clicked_lat"] = click_lat
+        st.session_state["clicked_lon"] = click_lon
+        st.rerun()
 
     st.divider()
-    st.subheader("🛣️ Hoja de Ruta Terrestre")
+    st.subheader("🛣️ Hoja de Ruta Terrestre (Trazado Activo)")
     if pasos_calles:
       for p in pasos_calles:
         st.markdown(f"• {p}")
@@ -535,8 +637,6 @@ if seccion == "🗺️ Planificación de Rutas":
 
   if not df_historial.empty:
     st.dataframe(df_historial, use_container_width=True)
-
-    # Botón de exportación a CSV/Excel
     csv = df_historial.to_csv(index=False).encode("utf-8")
     st.download_button(
         label="📥 Descargar Historial Operativo (CSV)",
@@ -601,23 +701,34 @@ elif seccion == "🏢 Entradas/Salidas de Edificios":
   conn = sqlite3.connect("sppro.db")
   cursor = conn.cursor()
   if es_admin:
-    cursor.execute("SELECT id, nombre, direccion, descripcion, adjunto, privado FROM edificios")
+    cursor.execute(
+        "SELECT id, nombre, direccion, descripcion, adjunto, privado FROM"
+        " edificios"
+    )
   else:
-    cursor.execute("SELECT id, nombre, direccion, descripcion, adjunto, privado FROM edificios WHERE privado = 0")
+    cursor.execute(
+        "SELECT id, nombre, direccion, descripcion, adjunto, privado FROM"
+        " edificios WHERE privado = 0"
+    )
   lista_edificios = cursor.fetchall()
   conn.close()
 
   if lista_edificios:
-    for edf_id, nombre, direccion, descripcion, adjunto, privado in lista_edificios:
+    for (
+        edf_id,
+        nombre,
+        direccion,
+        descripcion,
+        adjunto,
+        privado,
+    ) in lista_edificios:
       estado_vis = "🔒 Privado (Admin)" if privado == 1 else "🌐 Público"
       with st.expander(f"🏢 {nombre} - {direccion} | [{estado_vis}]"):
         st.write(f"Accesos y Salidas: {descripcion}")
         st.write(f"Archivo / Foto: {adjunto}")
         if es_admin:
           st.divider()
-          if st.button(
-              "Cambiar Visibilidad", key=f"cambiar_priv_{edf_id}"
-          ):
+          if st.button("Cambiar Visibilidad", key=f"cambiar_priv_{edf_id}"):
             nuevo_priv = 0 if privado == 1 else 1
             conn = sqlite3.connect("sppro.db")
             cursor = conn.cursor()
@@ -641,10 +752,16 @@ elif seccion == "🚨 Zonas de Riesgo":
   if es_admin:
     with st.form("form_zona"):
       st.subheader("➕ Registrar Nueva Alerta / Corte")
-      desc_zona = st.text_input("Descripción del Motivo (ej: Corte por manifestación / Zona roja)")
+      desc_zona = st.text_input(
+          "Descripción del Motivo (ej: Corte por manifestación / Zona roja)"
+      )
       lat_z = st.number_input("Latitud aproximada", value=-34.6037, format="%.4f")
-      lon_z = st.number_input("Longitud aproximada", value=-58.3816, format="%.4f")
-      radio_z = st.number_input("Radio de afectación (km)", value=0.5, format="%.1f")
+      lon_z = st.number_input(
+          "Longitud aproximada", value=-58.3816, format="%.4f"
+      )
+      radio_z = st.number_input(
+          "Radio de afectación (km)", value=0.5, format="%.1f"
+      )
 
       if st.form_submit_button("Guardar Zona de Riesgo"):
         conn = sqlite3.connect("sppro.db")
@@ -720,14 +837,16 @@ elif seccion == "👥 Gestión de Usuarios":
       col_info, col_btn = st.columns([3, 1])
       estado_texto = "🟢 Activo" if activo == 1 else "🔴 Inactivo"
       col_info.write(f"Usuario: {u} | Rol: {rol} | Estado: {estado_texto}")
-      
+
       nuevo_estado = 0 if activo == 1 else 1
       texto_btn = "Desactivar" if activo == 1 else "Reactivar"
-      
+
       if col_btn.button(texto_btn, key=f"btn_{u}"):
         conn = sqlite3.connect("sppro.db")
         cursor = conn.cursor()
-        cursor.execute("UPDATE usuarios SET activo = ? WHERE username = ?", (nuevo_estado, u))
+        cursor.execute(
+            "UPDATE usuarios SET activo = ? WHERE username = ?", (nuevo_estado, u)
+        )
         conn.commit()
         conn.close()
         st.rerun()
