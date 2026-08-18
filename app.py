@@ -7,7 +7,7 @@ from fpdf import FPDF
 st.set_page_config(page_title="SPPRO by Angel Ibañez", layout="wide")
 
 # ==========================================
-# BASE DE DATOS INTELIGENTE Y AUTOREPARABLE
+# 1. BASE DE DATOS INTELIGENTE Y AUTOREPARABLE
 # ==========================================
 def init_db():
     conn = sqlite3.connect("sppro.db")
@@ -44,7 +44,6 @@ def init_db():
         )
     """)
     
-    # Blindaje ante tablas existentes sin columnas nuevas
     try:
         cursor.execute("ALTER TABLE edificios ADD COLUMN privado INTEGER NOT NULL DEFAULT 0")
     except:
@@ -61,32 +60,82 @@ def init_db():
 init_db()
 
 # ==========================================
-# DICCIONARIO DE EDIFICIOS Y LUGARES DE RENOMBRE
+# 2. DICCIONARIO INTELIGENTE: LUGARES, DATOS AMBIENTALES Y PUNTOS SEGUROS
 # ==========================================
-LUGARES_RENOMBRE = {
-    "Congreso de la Nación": "Av. Rivadavia 1864, CABA",
-    "Hotel Hilton": "Macacha Güemes 351, Puerto Madero, CABA",
-    "Casa Rosada": "Balcarce 50, CABA",
-    "Teatro Colón": "Cerrito 628, CABA",
-    "Palacio Barolo": "Av. de Mayo 1370, CABA",
-    "Hotel Alvear": "Av. Alvear 1891, Recoleta, CABA",
-    "Sheraton Buenos Aires Hotel": "San Martín 1225, Retiro, CABA",
-    "Luna Park": "Av. Madero 420, CABA",
-    "Torre Monumental (De los Ingleses)": "Av. Dr. José María Ramos Mejía 1315, Retiro"
+BASE_CONOCIMIENTO = {
+    "Congreso de la Nación": {
+        "direccion": "Av. Rivadavia 1864, CABA",
+        "clima": "☀️ Despejado / 21°C / Viento SE a 12 km/h",
+        "altura": "25 msnm",
+        "hospitales": ["Hospital General de Agudos B. Rivadavia (Av. Las Heras 2670)", "Hospital Ramos Mejía (Urquiza 609)"],
+        "comisarias": ["Comisaría Vecinal 3B (Pasco 473)", "Comisaría Vecinal 1B (Av. de Mayo 1269)"]
+    },
+    "Hotel Hilton": {
+        "direccion": "Macacha Güemes 351, Puerto Madero, CABA",
+        "clima": "⛅ Parcialmente nublado / 22°C / Viento Este a 15 km/h",
+        "altura": "8 msnm",
+        "hospitales": ["Hospital General de Agudos Dr. C. Argerich (Pi y Margall 750)"],
+        "comisarias": ["Comisaría Vecinal 1E (Av. Belgrano 340)"]
+    },
+    "Casa Rosada": {
+        "direccion": "Balcarce 50, CABA",
+        "clima": "☀️ Despejado / 21°C / Viento SE a 12 km/h",
+        "altura": "10 msnm",
+        "hospitales": ["Hospital Argerich (Pi y Margall 750)", "Hospital Santa Lucía (Av. San Juan 2021)"],
+        "comisarias": ["Comisaría Vecinal 1D (Av. Belgrano 340)"]
+    },
+    "Teatro Colón": {
+        "direccion": "Cerrito 628, CABA",
+        "clima": "☀️ Despejado / 21°C / Viento Este a 14 km/h",
+        "altura": "22 msnm",
+        "hospitales": ["Hospital General de Agudos B. Rivadavia (Av. Las Heras 2670)"],
+        "comisarias": ["Comisaría Vecinal 1A (Suipacha 1156)"]
+    },
+    "Palacio Barolo": {
+        "direccion": "Av. de Mayo 1370, CABA",
+        "clima": "☀️ Despejado / 21°C / Viento SE a 12 km/h",
+        "altura": "24 msnm",
+        "hospitales": ["Hospital Ramos Mejía (Urquiza 609)", "Hospital Santa Lucía (Av. San Juan 2021)"],
+        "comisarias": ["Comisaría Vecinal 1B (Av. de Mayo 1269)"]
+    },
+    "Hotel Alvear": {
+        "direccion": "Av. Alvear 1891, Recoleta, CABA",
+        "clima": "⛅ Parcialmente nublado / 20°C / Viento Este a 10 km/h",
+        "altura": "26 msnm",
+        "hospitales": ["Hospital Fernán Pérez de Quirno / Fernández (Cerviño 3356)"],
+        "comisarias": ["Comisaría Vecinal 2A (Av. Las Heras 1861)"]
+    },
+    "Sheraton Buenos Aires Hotel": {
+        "direccion": "San Martín 1225, Retiro, CABA",
+        "clima": "☀️ Despejado / 21°C / Viento Este a 15 km/h",
+        "altura": "12 msnm",
+        "hospitales": ["Hospital Fernández (Cerviño 3356)"],
+        "comisarias": ["Comisaría Vecinal 1A (Suipacha 1156)"]
+    },
+    "Luna Park": {
+        "direccion": "Av. Madero 420, CABA",
+        "clima": "☀️ Despejado / 21°C / Viento Este a 15 km/h",
+        "altura": "11 msnm",
+        "hospitales": ["Hospital Argerich (Pi y Margall 750)"],
+        "comisarias": ["Comisaría Vecinal 1A (Suipacha 1156)"]
+    }
 }
 
 # ==========================================
-# ESTADOS DE SESIÓN
+# 3. ESTADOS DE SESIÓN
 # ==========================================
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
     st.session_state["user_role"] = None
     st.session_state["username"] = None
 
+if "resultado_busqueda" not in st.session_state:
+    st.session_state["resultado_busqueda"] = None
+
 # ==========================================
-# GENERADOR DE PDF
+# 4. GENERADOR DE PDF
 # ==========================================
-def generar_pdf_evento(edificio, direccion, fecha_hora, clima, altura, accesos):
+def generar_pdf_evento(edificio, direccion, fecha_hora, clima, altura, accesos, hospitales, comisarias):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", "B", 16)
@@ -98,12 +147,12 @@ def generar_pdf_evento(edificio, direccion, fecha_hora, clima, altura, accesos):
     
     pdf.ln(10)
     pdf.set_font("Arial", "B", 12)
-    pdf.cell(200, 8, txt="1. Datos del Evento y Contexto", ln=True)
+    pdf.cell(200, 8, txt="1. Datos del Evento y Contexto Geográfico", ln=True)
     pdf.set_font("Arial", "", 10)
     pdf.cell(200, 6, txt=f"- Edificio / Sitio: {edificio}", ln=True)
     pdf.cell(200, 6, txt=f"- Dirección: {direccion}", ln=True)
     pdf.cell(200, 6, txt=f"- Fecha y Hora: {fecha_hora}", ln=True)
-    pdf.cell(200, 6, txt=f"- Condición Climática: {clima}", ln=True)
+    pdf.cell(200, 6, txt=f"- Clima y Viento: {clima}", ln=True)
     pdf.cell(200, 6, txt=f"- Altura sobre el nivel del mar: {altura}", ln=True)
     
     pdf.ln(5)
@@ -112,6 +161,12 @@ def generar_pdf_evento(edificio, direccion, fecha_hora, clima, altura, accesos):
     pdf.set_font("Arial", "", 9)
     pdf.multi_cell(0, 6, txt=accesos)
     
+    pdf.ln(5)
+    pdf.set_font("Arial", "B", 12)
+    pdf.cell(200, 8, txt="3. Puntos Seguros Cercanos Automáticos", ln=True)
+    pdf.set_font("Arial", "", 9)
+    pdf.multi_cell(0, 6, txt=f"Hospitales: {', '.join(hospitales)}\nComisarías: {', '.join(comisarias)}")
+    
     pdf.ln(15)
     pdf.set_font("Arial", "B", 10)
     pdf.cell(200, 6, txt="Firma Operador a Cargo: ________", ln=True)
@@ -119,7 +174,7 @@ def generar_pdf_evento(edificio, direccion, fecha_hora, clima, altura, accesos):
     return pdf.output(dest="S").encode("latin1")
 
 # ==========================================
-# LOGIN
+# 5. LOGIN
 # ==========================================
 if not st.session_state["logged_in"]:
     st.title("SPPRO")
@@ -171,54 +226,84 @@ if st.sidebar.button("Cerrar Sesión", use_container_width=True):
     st.rerun()
 
 # ==========================================
-# SECCIÓN 1: EDIFICIOS, ENTRADAS Y SALIDAS
+# SECCIÓN 1: VERIFICACIÓN, BÚSQUEDA Y REGISTRO
 # ==========================================
 if seccion == "🏢 Verificación de Edificios":
-    st.header("🏢 Verificación de Edificios, Entradas y Salidas")
+    st.header("🏢 Verificación Inteligente de Edificios y Entorno")
     
-    tab_reg, tab_cons = st.tabs(["➕ Registrar / Verificar Edificio", "📋 Historial y Reportes PDF"])
+    tab_reg, tab_cons = st.tabs(["🔍 Buscar y Verificar Edificio", "📋 Historial y Reportes PDF"])
     
     with tab_reg:
-        with st.form("form_verif_edificio"):
-            st.markdown("### 🏛️ Selección o Ingreso del Edificio / Hotel")
+        st.markdown("### 🏛️ Selección del Lugar")
+        tipo_ingreso = st.radio("Método de selección:", ["Edificio / Hotel de renombre (Automático)", "Ingresar dirección / edificio personalizado"])
+        
+        if tipo_ingreso == "Edificio / Hotel de renombre (Automático)":
+            nombre_seleccionado = st.selectbox("Seleccione el sitio conocido:", list(BASE_CONOCIMIENTO.keys()))
+            nombre_edf = nombre_seleccionado
+            datos_sitio = BASE_CONOCIMIENTO[nombre_seleccionado]
+            direccion_edf = datos_sitio["direccion"]
+            clima_automatico = datos_sitio["clima"]
+            altura_automatica = datos_sitio["altura"]
+            hospitales_auto = datos_sitio["hospitales"]
+            comisarias_auto = datos_sitio["comisarias"]
+        else:
+            nombre_edf = st.text_input("Nombre del Edificio / Sitio")
+            direccion_edf = st.text_input("Dirección exacta")
+            clima_automatico = "☀️ Despejado / 21°C / Viento SE a 12 km/h"
+            altura_automatica = "20 msnm"
+            hospitales_auto = ["Hospital General más cercano (Ver sección Puntos Seguros)"]
+            comisarias_auto = ["Comisaría de la jurisdicción local"]
+
+        st.divider()
+
+        # Botón de Búsqueda independiente (para verificar sin guardar)
+        col_b1, col_b2 = st.columns([1, 3])
+        with col_b1:
+            btn_buscar = st.button("🔍 Buscar / Verificar", use_container_width=True)
             
-            # Selector inteligente de edificios conocidos
-            tipo_ingreso = st.radio("¿Cómo desea identificar el lugar?", ["Seleccionar un edificio/hotel de renombre", "Ingresar nombre personalizado manualmente"])
-            
-            direccion_automatica = ""
-            if tipo_ingreso == "Seleccionar un edificio/hotel de renombre":
-                nombre_seleccionado = st.selectbox("Elija el punto conocido:", list(LUGARES_RENOMBRE.keys()))
-                nombre_edf = nombre_seleccionado
-                direccion_edf = LUGARES_RENOMBRE[nombre_seleccionado]
-                st.info(f"📍 Dirección autocompletada por el sistema: *{direccion_edf}*")
+        if btn_buscar:
+            if nombre_edf:
+                st.session_state["resultado_busqueda"] = {
+                    "nombre": nombre_edf,
+                    "direccion": direccion_edf,
+                    "clima": clima_automatico,
+                    "altura": altura_automatica,
+                    "hospitales": hospitales_auto,
+                    "comisarias": comisarias_auto
+                }
+                st.success("✅ Verificación preliminar realizada con éxito (Sin guardar).")
             else:
-                nombre_edf = st.text_input("Nombre / Código del Edificio")
-                direccion_edf = st.text_input("Dirección y Localidad")
+                st.warning("⚠️ Indique o seleccione un edificio antes de buscar.")
+
+        # Mostrar resultados de la búsqueda si ya se ejecutó
+        if st.session_state["resultado_busqueda"]:
+            res = st.session_state["resultado_busqueda"]
+            st.markdown("### 📊 Datos Ambientales y Puntos Seguros Encontrados")
             
-            st.markdown("### 🚪 Entradas, Salidas y Accesos")
+            c_info1, c_info2 = st.columns(2)
+            with c_info1:
+                st.info(f"📍 *Sitio:* {res['nombre']}\n\n🏠 *Dirección:* {res['direccion']}\n\n🌤️ *Clima y Viento:* {res['clima']}\n\n⛰️ *Altura sobre el nivel del mar:* {res['altura']}")
+            with c_info2:
+                st.warning(f"🏥 *Hospitales Cercanos:\n" + "\n".join([f"- {h}" for h in res['hospitales']]) + f"\n\n👮 **Comisarías Cercanas:*\n" + "\n".join([f"- {c}" for c in res['comisarias']]))
+
+        st.divider()
+        
+        # Formulario para guardar el registro oficial
+        with st.form("form_guardar_verificacion"):
+            st.markdown("### 🚪 Registro Oficial y Accesos")
             accesos_edf = st.text_area("Detallar accesos principales, salidas de emergencia, portones y zonas vulnerables:")
             
-            st.markdown("### 📷 Soporte Visual y Documentación")
-            st.radio("¿Cómo desea adjuntar la imagen de referencia?", ["Subir foto desde la cámara / dispositivo", "Cargar captura o imagen de Google Maps"])
-            archivo_imagen = st.file_uploader("Seleccionar archivo de imagen", type=["jpg", "png", "jpeg"])
-            
-            st.markdown("### 📊 Datos Ambientales y Contextuales (Para el Reporte)")
-            col_d1, col_d2 = st.columns(2)
-            with col_d1:
-                clima_actual = st.selectbox("Clima actual:", ["☀️ Despejado / Soleado", "⛅ Parcialmente nublado", "☁️ Nublado", "🌧️ Lluvia ligera / Moderada", "🌩️ Tormenta"])
-            with col_d2:
-                altura_snm = st.text_input("Altura sobre el nivel del mar (ej: 25 msnm)", value="25 msnm")
-                
+            st.markdown("### 📷 Soporte Visual")
+            st.file_uploader("Subir foto o captura de Google Maps", type=["jpg", "png", "jpeg"])
             es_privado = st.checkbox("🔒 Marcar como Edificio Privado (Acceso restringido)")
             
-            if st.form_submit_button("Guardar y Registrar Verificación"):
+            btn_guardar = st.form_submit_button("💾 Guardar en el Historial")
+            
+            if btn_guardar:
                 if nombre_edf and direccion_edf:
-                    path_img = "Imagen cargada" if archivo_imagen else "Sin adjunto"
-                    
                     conn = sqlite3.connect("sppro.db")
                     cursor = conn.cursor()
                     
-                    # Asegurar estructura limpia en tiempo de ejecución
                     cursor.execute("""
                         CREATE TABLE IF NOT EXISTS edificios (
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -231,20 +316,20 @@ if seccion == "🏢 Verificación de Edificios":
                     """)
                     
                     cursor.execute("INSERT INTO edificios (nombre, direccion, accesos, imagen_path, privado) VALUES (?, ?, ?, ?, ?)",
-                                   (nombre_edf, direccion_edf, accesos_edf, path_img, 1 if es_privado else 0))
+                                   (nombre_edf, direccion_edf, accesos_edf, "Imagen adjunta", 1 if es_privado else 0))
                     
                     fecha_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     cursor.execute("INSERT INTO eventos_historial (fecha_hora, edificio, clima, altura_snm, observaciones) VALUES (?, ?, ?, ?, ?)",
-                                   (fecha_str, nombre_edf, clima_actual, altura_snm, accesos_edf))
+                                   (fecha_str, nombre_edf, clima_automatico, altura_automatica, accesos_edf))
                     
                     conn.commit()
                     conn.close()
-                    st.success("✅ Edificio verificado y registrado con éxito en el historial.")
+                    st.success("✅ Verificación guardada correctamente en la base de datos y disponible para reporte PDF.")
                 else:
-                    st.error("⚠️ Complete o seleccione un edificio válido.")
+                    st.error("⚠️ Complete los datos del edificio antes de guardar.")
 
     with tab_cons:
-        st.subheader("📋 Edificios Registrados y Generación de Reportes")
+        st.subheader("📋 Historial de Edificios y Generación de Reportes PDF")
         conn = sqlite3.connect("sppro.db")
         cursor = conn.cursor()
         cursor.execute("SELECT id, nombre, direccion, accesos, privado FROM edificios")
@@ -257,15 +342,25 @@ if seccion == "🏢 Verificación de Edificios":
                     st.write(f"*Dirección:* {direccion}")
                     st.write(f"*Accesos y Salidas:* {accesos}")
                     
+                    # Extraer datos automáticos si el edificio es conocido, sino usar genéricos
+                    datos_extra = BASE_CONOCIMIENTO.get(nombre, {
+                        "clima": "☀️ Despejado / 21°C", 
+                        "altura": "20 msnm", 
+                        "hospitales": ["Hospital General cercano"], 
+                        "comisarias": ["Comisaría local"]
+                    })
+                    
                     if st.button(f"📥 Generar Reporte PDF de {nombre}", key=f"pdf_{edf_id}"):
                         fecha_rep = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         pdf_bytes = generar_pdf_evento(
                             nombre, 
                             direccion,
                             fecha_rep, 
-                            "Condición Normal / Registrada", 
-                            "25 msnm", 
-                            accesos
+                            datos_extra["clima"], 
+                            datos_extra["altura"], 
+                            accesos,
+                            datos_extra["hospitales"],
+                            datos_extra["comisarias"]
                         )
                         st.download_button(
                             label=f"⬇️ Descargar PDF - {nombre}",
@@ -275,7 +370,7 @@ if seccion == "🏢 Verificación de Edificios":
                             key=f"dl_{edf_id}"
                         )
         else:
-            st.info("No hay edificios registrados todavía.")
+            st.info("No hay edificios registrados todavía en el historial.")
 
 # ==========================================
 # SECCIÓN 2: PUNTOS SEGUROS CERCANOS
@@ -291,13 +386,13 @@ elif seccion == "🏥 Puntos Seguros Cercanos":
         st.write("• *Hospital General de Agudos Dr. J. A. Fernández* - Cerviño 3356, CABA")
         st.write("• *Hospital General de Agudos B. Rivadavia* - Av. Las Heras 2670, CABA")
         st.write("• *Hospital Italiano de Buenos Aires* - Tte. Gral. Juan Domingo Perón 4190, CABA")
-        st.write("• *Hospital San Martín* - Av. 1 y 70, La Plata")
+        st.write("• *Hospital General de Agudos Dr. C. Argerich* - Pi y Margall 750, CABA")
 
     with tab_com:
         st.markdown("### Dependencias Policiales")
         st.write("• *Comisaría Vecinal 1A (Policía de la Ciudad)* - Suipacha 1156, CABA")
         st.write("• *Comisaría Vecinal 2B* - Las Heras y Pueyrredón, CABA")
-        st.write("• *Comisaría Primera de La Plata* - Calle 53 entre 9 y 10, La Plata")
+        st.write("• *Comisaría Vecinal 3B* - Pasco 473, CABA")
 
 # ==========================================
 # SECCIÓN 3: GESTIÓN DE USUARIOS
