@@ -53,15 +53,31 @@ WMO_CODES = {
 def buscar_direcciones_similares(query):
     if not query or len(query.strip()) < 3:
         return []
+    
+    # Preparamos el query para que Nominatim entienda mejor las intersecciones
+    # Reemplazamos " y " por una coma para que la API busque la intersección
+    query_procesado = query.lower().replace(" y ", ", ")
+    
     try:
-        # Forzamos una búsqueda orientada a Argentina/CABA para afinar alturas catastrales
-        url = f"https://nominatim.openstreetmap.org/search?q={query},+Buenos+Aires&format=json&limit=6"
+        # Usamos 'addressdetails=1' para que nos dé ciudad, estado, etc.
+        url = "https://nominatim.openstreetmap.org/search"
+        params = {
+            "q": query_procesado,
+            "format": "json",
+            "addressdetails": 1,
+            "limit": 6,
+            "countrycodes": "ar" # Limitamos a Argentina para evitar resultados en otros países
+        }
         headers = {"User-Agent": "SPPRO_App_AngelIbanez"}
-        res = requests.get(url, headers=headers, timeout=5).json()
+        res = requests.get(url, params=params, headers=headers, timeout=5).json()
+        
         opciones = []
         for item in res:
+            # Aquí mostramos el nombre completo, incluyendo ciudad si está disponible
+            # Así podés ver: "Plaza de Mayo, Ciudad Autónoma de Buenos Aires"
+            display_name = item.get("display_name", "Ubicación desconocida")
             opciones.append({
-                "display_name": item["display_name"],
+                "display_name": display_name,
                 "lat": float(item["lat"]),
                 "lon": float(item["lon"])
             })
