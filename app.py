@@ -22,7 +22,6 @@ def init_db():
         )
     """)
     
-    # Verificamos si la tabla edificios existe y si tiene todas las columnas necesarias
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='edificios'")
     tabla_existe = cursor.fetchone()
     
@@ -38,7 +37,6 @@ def init_db():
             )
         """)
     else:
-        # Si ya existe, verificamos que tenga la columna privado
         cursor.execute("PRAGMA table_info(edificios)")
         columnas = [info[1] for info in cursor.fetchall()]
         if "privado" not in columnas:
@@ -77,56 +75,72 @@ BASE_CONOCIMIENTO = {
         "clima": "☀️ Despejado / 21°C / Viento SE a 12 km/h",
         "altura": "25 msnm",
         "hospitales": ["Hospital General de Agudos B. Rivadavia (Av. Las Heras 2670)", "Hospital Ramos Mejía (Urquiza 609)"],
-        "comisarias": ["Comisaría Vecinal 3B (Pasco 473)", "Comisaría Vecinal 1B (Av. de Mayo 1269)"]
+        "comisarias": ["Comisaría Vecinal 3B (Pasco 473)", "Comisaría Vecinal 1B (Av. de Mayo 1269)"],
+        "pfa": ["División Custodia Congreso (Dentro del edificio)", "Comisaría PFA - Delegación Congreso"],
+        "ffaa": ["Estado Mayor Conjunto de las FFAA (Paseo Colón 1401)", "Edificio Libertador (Azopardo 250)"]
     },
     "Hotel Hilton": {
         "direccion": "Macacha Güemes 351, Puerto Madero, CABA",
         "clima": "⛅ Parcialmente nublado / 22°C / Viento Este a 15 km/h",
         "altura": "8 msnm",
         "hospitales": ["Hospital General de Agudos Dr. C. Argerich (Pi y Margall 750)"],
-        "comisarias": ["Comisaría Vecinal 1E (Av. Belgrano 340)"]
+        "comisarias": ["Comisaría Vecinal 1E (Av. Belgrano 340)"],
+        "pfa": ["Prefectura Naval Argentina - Puerto Madero (Jurisdicción Especial)", "Delegación PFA Puerto Madero"],
+        "ffaa": ["Estado Mayor General de la Armada (Comodoro Py 2055)"]
     },
     "Casa Rosada": {
         "direccion": "Balcarce 50, CABA",
         "clima": "☀️ Despejado / 21°C / Viento SE a 12 km/h",
         "altura": "10 msnm",
         "hospitales": ["Hospital Argerich (Pi y Margall 750)", "Hospital Santa Lucía (Av. San Juan 2021)"],
-        "comisarias": ["Comisaría Vecinal 1D (Av. Belgrano 340)"]
+        "comisarias": ["Comisaría Vecinal 1D (Av. Belgrano 340)"],
+        "pfa": ["División Seguridad Casa de Gobierno (En el predio)", " Superintendencia de Seguridad Metropolitana PFA"],
+        "ffaa": ["Edificio Libertador - Ministerio de Defensa (Azopardo 250)"]
     },
     "Teatro Colón": {
         "direccion": "Cerrito 628, CABA",
         "clima": "☀️ Despejado / 21°C / Viento Este a 14 km/h",
         "altura": "22 msnm",
         "hospitales": ["Hospital General de Agudos B. Rivadavia (Av. Las Heras 2670)"],
-        "comisarias": ["Comisaría Vecinal 1A (Suipacha 1156)"]
+        "comisarias": ["Comisaría Vecinal 1A (Suipacha 1156)"],
+        "pfa": ["División Protección Barrial Centro PFA"],
+        "ffaa": ["Estado Mayor General del Ejército (Azopardo 250)"]
     },
     "Palacio Barolo": {
         "direccion": "Av. de Mayo 1370, CABA",
         "clima": "☀️ Despejado / 21°C / Viento SE a 12 km/h",
         "altura": "24 msnm",
         "hospitales": ["Hospital Ramos Mejía (Urquiza 609)", "Hospital Santa Lucía (Av. San Juan 2021)"],
-        "comisarias": ["Comisaría Vecinal 1B (Av. de Mayo 1269)"]
+        "comisarias": ["Comisaría Vecinal 1B (Av. de Mayo 1269)"],
+        "pfa": ["Delegación PFA Zona Congreso-Centro"],
+        "ffaa": ["Círculo Militar (Plaza San Martín)"]
     },
     "Hotel Alvear": {
         "direccion": "Av. Alvear 1891, Recoleta, CABA",
         "clima": "⛅ Parcialmente nublado / 20°C / Viento Este a 10 km/h",
         "altura": "26 msnm",
         "hospitales": ["Hospital Fernán Pérez de Quirno / Fernández (Cerviño 3356)"],
-        "comisarias": ["Comisaría Vecinal 2A (Av. Las Heras 1861)"]
+        "comisarias": ["Comisaría Vecinal 2A (Av. Las Heras 1861)"],
+        "pfa": ["Delegación PFA Recoleta"],
+        "ffaa": ["Guarnición Militar Buenos Aires (Palermo)"]
     },
     "Sheraton Buenos Aires Hotel": {
         "direccion": "San Martín 1225, Retiro, CABA",
         "clima": "☀️ Despejado / 21°C / Viento Este a 15 km/h",
         "altura": "12 msnm",
         "hospitales": ["Hospital Fernández (Cerviño 3356)"],
-        "comisarias": ["Comisaría Vecinal 1A (Suipacha 1156)"]
+        "comisarias": ["Comisaría Vecinal 1A (Suipacha 1156)"],
+        "pfa": ["Superintendencia de Investigaciones Federales PFA (Cavia 3350 / Retiro)"],
+        "ffaa": ["Edificio Cóndor - Fuerza Aérea Argentina (Comodoro Py 2550)"]
     },
     "Luna Park": {
         "direccion": "Av. Madero 420, CABA",
         "clima": "☀️ Despejado / 21°C / Viento Este a 15 km/h",
         "altura": "11 msnm",
         "hospitales": ["Hospital Argerich (Pi y Margall 750)"],
-        "comisarias": ["Comisaría Vecinal 1A (Suipacha 1156)"]
+        "comisarias": ["Comisaría Vecinal 1A (Suipacha 1156)"],
+        "pfa": ["Comisaría PFA Madero / Zona Portuaria"],
+        "ffaa": ["Estado Mayor General de la Armada (Comodoro Py 2055)"]
     }
 }
 
@@ -142,9 +156,9 @@ if "resultado_busqueda" not in st.session_state:
     st.session_state["resultado_busqueda"] = None
 
 # ==========================================
-# 4. GENERADOR DE PDF
+# 4. GENERADOR DE PDF (Actualizado con PFA y FFAA)
 # ==========================================
-def generar_pdf_evento(edificio, direccion, fecha_hora, clima, altura, accesos, hospitales, comisarias):
+def generar_pdf_evento(edificio, direccion, fecha_hora, clima, altura, accesos, hospitales, comisarias, pfa, ffaa):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", "B", 16)
@@ -172,11 +186,14 @@ def generar_pdf_evento(edificio, direccion, fecha_hora, clima, altura, accesos, 
     
     pdf.ln(5)
     pdf.set_font("Arial", "B", 12)
-    pdf.cell(200, 8, txt="3. Puntos Seguros Cercanos Automáticos", ln=True)
+    pdf.cell(200, 8, txt="3. Puntos Seguros y Fuerzas de Apoyo Cercanas", ln=True)
     pdf.set_font("Arial", "", 9)
-    pdf.multi_cell(0, 6, txt=f"Hospitales:\n" + "\n".join([f"• {h}" for h in hospitales]) + f"\n\nComisarías:\n" + "\n".join([f"• {c}" for c in comisarias]))
+    pdf.multi_cell(0, 6, txt=f"Hospitales:\n" + "\n".join([f"• {h}" for h in hospitales]) + 
+                             f"\n\nComisarías (Policía de la Ciudad):\n" + "\n".join([f"• {c}" for c in comisarias]) +
+                             f"\n\nPolicía Federal Argentina (PFA):\n" + "\n".join([f"• {p}" for p in pfa]) +
+                             f"\n\nFuerzas Armadas (FFAA):\n" + "\n".join([f"• {f}" for f in ffaa]))
     
-    pdf.ln(15)
+    pdf.ln(10)
     pdf.set_font("Arial", "B", 10)
     pdf.cell(200, 6, txt="Firma Operador a Cargo: ________", ln=True)
     
@@ -255,6 +272,8 @@ if seccion == "🏢 Verificación de Edificios":
             altura_automatica = datos_sitio["altura"]
             hospitales_auto = datos_sitio["hospitales"]
             comisarias_auto = datos_sitio["comisarias"]
+            pfa_auto = datos_sitio["pfa"]
+            ffaa_auto = datos_sitio["ffaa"]
         else:
             nombre_edf = st.text_input("Nombre del Edificio / Sitio")
             direccion_edf = st.text_input("Dirección exacta")
@@ -262,6 +281,8 @@ if seccion == "🏢 Verificación de Edificios":
             altura_automatica = "20 msnm"
             hospitales_auto = ["Hospital General más cercano (Ver sección Puntos Seguros)"]
             comisarias_auto = ["Comisaría de la jurisdicción local"]
+            pfa_auto = ["Delegación PFA jurisdiccional"]
+            ffaa_auto = ["Unidad de Guarnición de las FFAA cercana"]
 
         st.divider()
 
@@ -277,27 +298,66 @@ if seccion == "🏢 Verificación de Edificios":
                     "clima": clima_automatico,
                     "altura": altura_automatica,
                     "hospitales": hospitales_auto,
-                    "comisarias": comisarias_auto
+                    "comisarias": comisarias_auto,
+                    "pfa": pfa_auto,
+                    "ffaa": ffaa_auto
                 }
-                st.success("✅ Verificación preliminar realizada con éxito (Sin guardar).")
+                st.success("✅ Verificación preliminar realizada con éxito (Lista para reporte o registro).")
             else:
                 st.warning("⚠️ Indique o seleccione un edificio antes de buscar.")
 
         if st.session_state["resultado_busqueda"]:
             res = st.session_state["resultado_busqueda"]
-            st.markdown("### 📊 Datos Ambientales y Puntos Seguros Encontrados")
+            st.markdown("### 📊 Datos Ambientales y Puntos Seguros / Fuerzas Encontradas")
             
             c_info1, c_info2 = st.columns(2)
             with c_info1:
                 st.info(f"📍 *Sitio:* {res['nombre']}\n\n🏠 *Dirección:* {res['direccion']}\n\n🌤️ *Clima y Viento:* {res['clima']}\n\n⛰️ *Altura sobre el nivel del mar:* {res['altura']}")
             with c_info2:
-                st.warning(f"🏥 *Hospitales Cercanos:\n" + "\n".join([f"- {h}" for h in res['hospitales']]) + f"\n\n👮 **Comisarías Cercanas:*\n" + "\n".join([f"- {c}" for c in res['comisarias']]))
+                st.warning(f"🏥 *Hospitales:*\n" + "\n".join([f"- {h}" for h in res['hospitales']]) + 
+                           f"\n\n👮 *Comisarías:*\n" + "\n".join([f"- {c}" for c in res['comisarias']]) +
+                           f"\n\n🚨 *Destinos PFA:*\n" + "\n".join([f"- {p}" for p in res['pfa']]) +
+                           f"\n\n🎖️ *Destinos FFAA:*\n" + "\n".join([f"- {f}" for f in res['ffaa']]))
 
         st.divider()
         
+        # Generación de PDF instantáneo (Incluso sin guardar en base de datos)
+        st.markdown("### 📄 Generación de Reporte PDF Instantáneo")
+        if st.session_state["resultado_busqueda"]:
+            res_pdf = st.session_state["resultado_busqueda"]
+            
+            # Se permite capturar accesos provisorios de la session o formulario rápido
+            accesos_temp = st.text_area("Notas sobre accesos para el reporte instantáneo:", value="Accesos principales verificados por operador.")
+            
+            fecha_rep_inst = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            pdf_bytes_inst = generar_pdf_evento(
+                res_pdf["nombre"],
+                res_pdf["direccion"],
+                fecha_rep_inst,
+                res_pdf["clima"],
+                res_pdf["altura"],
+                accesos_temp,
+                res_pdf["hospitales"],
+                res_pdf["comisarias"],
+                res_pdf["pfa"],
+                res_pdf["ffaa"]
+            )
+            
+            st.download_button(
+                label=f"⬇️ Descargar Reporte PDF Instantáneo - {res_pdf['nombre']}",
+                data=pdf_bytes_inst,
+                file_name=f"Reporte_Instantaneo_{res_pdf['nombre'].replace(' ', '_')}.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
+        else:
+            st.info("💡 Realice la búsqueda/verificación arriba para habilitar el reporte PDF instantáneo sin necesidad de guardar el edificio.")
+
+        st.divider()
+
         with st.form("form_guardar_verificacion"):
-            st.markdown("### 🚪 Registro Oficial y Accesos")
-            accesos_edf = st.text_area("Detallar accesos principales, salidas de emergencia, portones y zonas vulnerables:")
+            st.markdown("### 🚪 Registro Oficial en Base de Datos y Accesos")
+            accesos_edf = st.text_area("Detallar accesos principales, salidas de emergencia, portones y zonas vulnerables para registro:")
             
             st.markdown("### 📷 Soporte Visual")
             st.file_uploader("Subir foto o captura de Google Maps", type=["jpg", "png", "jpeg"])
@@ -323,7 +383,7 @@ if seccion == "🏢 Verificación de Edificios":
                     
                     conn.commit()
                     conn.close()
-                    st.success("✅ Verificación guardada correctamente en la base de datos y disponible para reporte PDF.")
+                    st.success("✅ Verificación guardada correctamente en la base de datos.")
                 else:
                     st.error("⚠️ Complete los datos del edificio antes de guardar.")
 
@@ -332,12 +392,10 @@ if seccion == "🏢 Verificación de Edificios":
         conn = sqlite3.connect("sppro.db")
         cursor = conn.cursor()
         
-        # Lectura totalmente segura y blindada
         try:
             cursor.execute("SELECT id, nombre, direccion, accesos, privado FROM edificios")
             edificios_lista = cursor.fetchall()
         except sqlite3.OperationalError:
-            # Si hay cualquier desajuste de columnas, recrea la tabla de forma limpia para evitar que falle
             cursor.execute("DROP TABLE IF EXISTS edificios")
             cursor.execute("""
                 CREATE TABLE edificios (
@@ -365,7 +423,9 @@ if seccion == "🏢 Verificación de Edificios":
                         "clima": "☀️ Despejado / 21°C", 
                         "altura": "20 msnm", 
                         "hospitales": ["Hospital General cercano"], 
-                        "comisarias": ["Comisaría local"]
+                        "comisarias": ["Comisaría local"],
+                        "pfa": ["Delegación PFA local"],
+                        "ffaa": ["Unidad de las FFAA cercana"]
                     })
                     
                     fecha_rep = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -377,7 +437,9 @@ if seccion == "🏢 Verificación de Edificios":
                         datos_extra["altura"], 
                         accesos or "Sin detalles de accesos registrados",
                         datos_extra["hospitales"],
-                        datos_extra["comisarias"]
+                        datos_extra["comisarias"],
+                        datos_extra["pfa"],
+                        datos_extra["ffaa"]
                     )
                     
                     st.download_button(
@@ -394,10 +456,15 @@ if seccion == "🏢 Verificación de Edificios":
 # SECCIÓN 2: PUNTOS SEGUROS CERCANOS
 # ==========================================
 elif seccion == "🏥 Puntos Seguros Cercanos":
-    st.header("🏥 Puntos Seguros (Hospitales y Comisarías)")
-    st.caption("Directorio de asistencia y recursos críticos cercanos para la operación de seguridad.")
+    st.header("🏥 Puntos Seguros (Hospitales, Comisarías, PFA y FFAA)")
+    st.caption("Directorio de asistencia, fuerzas federales, armadas y recursos críticos cercanos para la operación de seguridad.")
     
-    tab_hosp, tab_com = st.tabs(["🏥 Hospitales y Centros de Salud", "👮 Comisarías y Destacamentos"])
+    tab_hosp, tab_com, tab_fed, tab_ffaa = st.tabs([
+        "🏥 Hospitales", 
+        "👮 Comisarías (Ciudad)", 
+        "🚨 Policía Federal (PFA)", 
+        "🎖️ Fuerzas Armadas (FFAA)"
+    ])
     
     with tab_hosp:
         st.markdown("### Centros Médicos de Urgencia")
@@ -407,10 +474,23 @@ elif seccion == "🏥 Puntos Seguros Cercanos":
         st.write("• *Hospital General de Agudos Dr. C. Argerich* - Pi y Margall 750, CABA")
 
     with tab_com:
-        st.markdown("### Dependencias Policiales")
-        st.write("• *Comisaría Vecinal 1A (Policía de la Ciudad)* - Suipacha 1156, CABA")
+        st.markdown("### Dependencias de la Policía de la Ciudad")
+        st.write("• *Comisaría Vecinal 1A* - Suipacha 1156, CABA")
         st.write("• *Comisaría Vecinal 2B* - Las Heras y Pueyrredón, CABA")
         st.write("• *Comisaría Vecinal 3B* - Pasco 473, CABA")
+
+    with tab_fed:
+        st.markdown("### Destinos y Dependencias de la Policía Federal Argentina (PFA)")
+        st.write("• *Superintendencia de Investigaciones Federales* - Cavia 3350, CABA")
+        st.write("• *División Custodia Congreso* - Av. Rivadavia 1864, CABA")
+        st.write("• *División Seguridad Casa de Gobierno* - Balcarce 50, CABA")
+
+    with tab_ffaa:
+        st.markdown("### Cuarteles y Edificios de las Fuerzas Armadas (FFAA)")
+        st.write("• *Edificio Libertador (Ministerio de Defensa / Estado Mayor General del Ejército)* - Azopardo 250, CABA")
+        st.write("• *Edificio Cóndor (Estado Mayor General de la Fuerza Aérea)* - Comodoro Py 2550, CABA")
+        st.write("• *Estado Mayor General de la Armada* - Comodoro Py 2055, CABA")
+        st.write("• *Estado Mayor Conjunto de las FFAA* - Paseo Colón 1401, CABA")
 
 # ==========================================
 # SECCIÓN 3: GESTIÓN DE USUARIOS
