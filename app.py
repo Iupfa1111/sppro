@@ -7,7 +7,7 @@ from fpdf import FPDF
 st.set_page_config(page_title="SPPRO by Angel Ibañez", layout="wide")
 
 # ==========================================
-# 1. GESTIÓN DE BASE DE DATOS
+# 1. GESTIÓN DE BASE DE DATOS (AUTO-ACTUALIZADA)
 # ==========================================
 def init_db():
     conn = sqlite3.connect("sppro.db")
@@ -22,6 +22,7 @@ def init_db():
         )
     """)
     
+    # Tabla de edificios con manejo seguro de columnas
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS edificios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -29,7 +30,7 @@ def init_db():
             direccion TEXT NOT NULL,
             accesos TEXT,
             imagen_path TEXT,
-            privado INTEGER NOT NULL
+            privado INTEGER NOT NULL DEFAULT 0
         )
     """)
     
@@ -43,6 +44,12 @@ def init_db():
             observaciones TEXT
         )
     """)
+    
+    # Asegurar compatibilidad si la tabla ya existía sin la columna 'privado'
+    try:
+        cursor.execute("ALTER TABLE edificios ADD COLUMN privado INTEGER NOT NULL DEFAULT 0")
+    except:
+        pass
     
     cursor.execute("SELECT COUNT(*) FROM usuarios")
     if cursor.fetchone()[0] == 0:
