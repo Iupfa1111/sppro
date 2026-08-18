@@ -44,12 +44,12 @@ def init_db():
         )
     """)
     
-    # Asegurar de forma segura que la columna privado exista siempre
-    try:
+    # Asegurar de forma segura que la columna privado exista siempre desde el inicio
+    cursor.execute("PRAGMA table_info(edificios)")
+    columnas = [info[1] for info in cursor.fetchall()]
+    if "privado" not in columnas:
         cursor.execute("ALTER TABLE edificios ADD COLUMN privado INTEGER NOT NULL DEFAULT 0")
-    except sqlite3.OperationalError:
-        pass
-          
+        
     cursor.execute("SELECT COUNT(*) FROM usuarios")
     if cursor.fetchone()[0] == 0:
         cursor.execute("INSERT INTO usuarios VALUES (?, ?, ?, ?)", ("admin", "admin123", 1, "Administrador"))
@@ -257,7 +257,6 @@ if seccion == "🏢 Verificación de Edificios":
 
         st.divider()
 
-        # Botón de Búsqueda independiente (para verificar sin guardar)
         col_b1, col_b2 = st.columns([1, 3])
         with col_b1:
             btn_buscar = st.button("🔍 Buscar / Verificar", use_container_width=True)
@@ -276,7 +275,6 @@ if seccion == "🏢 Verificación de Edificios":
             else:
                 st.warning("⚠️ Indique o seleccione un edificio antes de buscar.")
 
-        # Mostrar resultados de la búsqueda si ya se ejecutó
         if st.session_state["resultado_busqueda"]:
             res = st.session_state["resultado_busqueda"]
             st.markdown("### 📊 Datos Ambientales y Puntos Seguros Encontrados")
@@ -289,7 +287,6 @@ if seccion == "🏢 Verificación de Edificios":
 
         st.divider()
         
-        # Formulario para guardar el registro oficial
         with st.form("form_guardar_verificacion"):
             st.markdown("### 🚪 Registro Oficial y Accesos")
             accesos_edf = st.text_area("Detallar accesos principales, salidas de emergencia, portones y zonas vulnerables:")
@@ -306,22 +303,15 @@ if seccion == "🏢 Verificación de Edificios":
                     cursor = conn.cursor()
                     
                     cursor.execute("""
-                        CREATE TABLE IF NOT EXISTS edificios (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            nombre TEXT NOT NULL,
-                            direccion TEXT NOT NULL,
-                            accesos TEXT,
-                            imagen_path TEXT,
-                            privado INTEGER NOT NULL DEFAULT 0
-                        )
-                    """)
-                    
-                    cursor.execute("INSERT INTO edificios (nombre, direccion, accesos, imagen_path, privado) VALUES (?, ?, ?, ?, ?)",
-                                   (nombre_edf, direccion_edf, accesos_edf, "Imagen adjunta", 1 if es_privado else 0))
+                        INSERT INTO edificios (nombre, direccion, accesos, imagen_path, privado) 
+                        VALUES (?, ?, ?, ?, ?)
+                    """, (nombre_edf, direccion_edf, accesos_edf, "Imagen adjunta", 1 if es_privado else 0))
                     
                     fecha_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    cursor.execute("INSERT INTO eventos_historial (fecha_hora, edificio, clima, altura_snm, observaciones) VALUES (?, ?, ?, ?, ?)",
-                                   (fecha_str, nombre_edf, clima_automatico, altura_automatica, accesos_edf))
+                    cursor.execute("""
+                        INSERT INTO eventos_historial (fecha_hora, edificio, clima, altura_snm, observaciones) 
+                        VALUES (?, ?, ?, ?, ?)
+                    """, (fecha_str, nombre_edf, clima_automatico, altura_automatica, accesos_edf))
                     
                     conn.commit()
                     conn.close()
@@ -334,13 +324,8 @@ if seccion == "🏢 Verificación de Edificios":
         conn = sqlite3.connect("sppro.db")
         cursor = conn.cursor()
         
-        # Garantizar compatibilidad por si la tabla vieja no tiene la columna privado
-        try:
-            cursor.execute("SELECT id, nombre, direccion, accesos, privado FROM edificios")
-        except sqlite3.OperationalError:
-            cursor.execute("ALTER TABLE edificios ADD COLUMN privado INTEGER NOT NULL DEFAULT 0")
-            cursor.execute("SELECT id, nombre, direccion, accesos, privado FROM edificios")
-            
+        # Consulta segura garantizada sin ALTER TABLE en medio de la lectura
+        cursor.execute("SELECT id, nombre, direccion, accesos, privado FROM edificios")
         edificios_lista = cursor.fetchall()
         conn.close()
         
@@ -357,25 +342,26 @@ if seccion == "🏢 Verificación de Edificios":
                         "comisarias": ["Comisaría local"]
                     })
                     
-                    if st.button(f"📥 Generar Reporte PDF de {nombre}", key=f"pdf_{edf_id}"):
-                        fecha_rep = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        pdf_bytes = generar_pdf_evento(
-                            nombre, 
-                            direccion,
-                            fecha_rep, 
-                            datos_extra["clima"], 
-                            datos_extra["altura"], 
-                            accesos,
-                            datos_extra["hospitales"],
-                            datos_extra["comisarias"]
-                        )
-                        st.download_button(
-                            label=f"⬇️ Descargar PDF - {nombre}",
-                            data=pdf_bytes,
-                            file_name=f"Reporte_Edificio_{nombre.replace(' ', '_')}.pdf",
-                            mime="application/pdf",
-                            key=f"dl_{edf_id}"
-                        )
+                    # Generación directa y estable del PDF y botón de descarga dentro del expander
+                    fecha_rep = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    pdf_bytes = generar_pdf_evento(
+                        nombre, 
+                        direccion,
+                        fecha_rep, 
+                        datos_extra["clima"], 
+                        datos_extra["altura"], 
+                        accesos or "Sin detalles de accesos registrados",
+                        datos_extra["hospitales"],
+                        datos_extra["comisarias"]
+                    )
+                    
+                    st.download_button(
+                        label=f"⬇️ Descargar Reporte PDF - {nombre}",
+                        data=pdf_bytes,
+                        file_name=f"Reporte_Edificio_{nombre.replace(' ', '_')}.pdf",
+                        mime="application/pdf",
+                        key=f"dl_pdf_{edf_id}"
+                    )
         else:
             st.info("No hay edificios registrados todavía en el historial.")
 
