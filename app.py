@@ -8,7 +8,6 @@ import datetime
 
 st.set_page_config(page_title="SPPRO by Angel Ibañez", layout="wide")
 
-# --- BASE DE DATOS EN MEMORIA ---
 if "usuarios" not in st.session_state:
     st.session_state["usuarios"] = {
         "admin": {"pass": "admin123", "activo": True, "rol": "Administrador"},
@@ -34,6 +33,10 @@ if "edificios" not in st.session_state:
         }
     ]
 
+# Inicializar estado para los planes de ruta si no existe
+if "plan_activo" not in st.session_state:
+    st.session_state["plan_activo"] = "Plan A"
+
 WMO_CODES = {
     0: "☀️ Despejado / Soleado",
     1: "🌤️ Mayormente despejado",
@@ -47,12 +50,12 @@ WMO_CODES = {
     95: "🌩️ Tormenta eléctrica"
 }
 
-# --- BÚSQUEDA DE DIRECCIONES SIMILARES (SUGERENCIAS) ---
 def buscar_direcciones_similares(query):
     if not query or len(query.strip()) < 3:
         return []
     try:
-        url = f"https://nominatim.openstreetmap.org/search?q={query}&format=json&limit=5"
+        # Forzamos una búsqueda orientada a Argentina/CABA para afinar alturas catastrales
+        url = f"https://nominatim.openstreetmap.org/search?q={query},+Buenos+Aires&format=json&limit=6"
         headers = {"User-Agent": "SPPRO_App_AngelIbanez"}
         res = requests.get(url, headers=headers, timeout=5).json()
         opciones = []
@@ -66,7 +69,6 @@ def buscar_direcciones_similares(query):
     except:
         return []
 
-# --- RUTEO VIAL OSRM ---
 def obtener_ruta_terrestre(lat_orig, lon_orig, lat_dest, lon_dest):
     try:
         url = f"http://router.project-osrm.org/route/v1/driving/{lon_orig},{lat_orig};{lon_dest},{lat_dest}?overview=full&geometries=geojson&steps=true"
@@ -80,13 +82,12 @@ def obtener_ruta_terrestre(lat_orig, lon_orig, lat_dest, lon_dest):
                 nombre_calle = step.get("name", "").strip()
                 distancia = step.get("distance", 0)
                 if nombre_calle and distancia > 20:
-                    pasos.append(f"Tomar **{nombre_calle}** ({int(distancia)} m)")
+                    pasos.append(f"Tomar *{nombre_calle}* ({int(distancia)} m)")
             return puntos_ruta, pasos
     except:
         pass
     return None, []
 
-# --- CLIMA DETALLADO ---
 def obtener_clima_detallado(lat, lon):
     try:
         url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true"
@@ -97,12 +98,11 @@ def obtener_clima_detallado(lat, lon):
             viento = cw.get("windspeed", "N/D")
             code = cw.get("weathercode", 0)
             condicion = WMO_CODES.get(code, "🌤️ Condición estable")
-            return f"**Condición:** {condicion} | 🌡️ **Temp:** {temp}°C | 💨 **Viento:** {viento} km/h", condicion
+            return f"*Condición:* {condicion} | 🌡️ *Temp:* {temp}°C | 💨 *Viento:* {viento} km/h", condicion
     except:
         pass
     return "Información meteorológica no disponible.", "No disponible"
 
-# --- LOGIN ---
 if not st.session_state["logged_in"]:
     st.title("SPPRO")
     st.caption("by Angel Ibañez")
@@ -126,7 +126,6 @@ if not st.session_state["logged_in"]:
                 st.error("❌ Usuario o contraseña incorrectos.")
     st.stop()
 
-# --- HEADER PRINCIPAL ---
 st.title("SPPRO")
 st.caption("by Angel Ibañez")
 
@@ -143,7 +142,6 @@ if st.sidebar.button("Cerrar Sesión"):
     st.session_state["logged_in"] = False
     st.rerun()
 
-# --- MÓDULO 1: PLANIFICACIÓN DE RUTAS ---
 if seccion == "🗺️ Planificación de Rutas":
     st.header("🗺️ Navegación y Rúteo de Seguridad Terrestre")
     
@@ -157,42 +155,51 @@ if seccion == "🗺️ Planificación de Rutas":
     col_orig, col_dest = st.columns(2)
     
     with col_orig:
-        txt_origen = st.text_input("1. Buscar Origen (o dejá vacío para usar tu GPS):", placeholder="Ej: Obelisco, Buenos Aires")
+        txt_origen = st.text_input("1. Origen (Calle y Altura / Lugar):", placeholder="Ej: Av Corrientes 1000")
         sug_origen = buscar_direcciones_similares(txt_origen)
         coords_orig = None
         
         if sug_origen:
             opciones_orig_dict = {item["display_name"]: (item["lat"], item["lon"]) for item in sug_origen}
-            sel_orig = st.selectbox("Coincidencias de Origen encontradas:", list(opciones_orig_dict.keys()))
+            sel_orig = st.selectbox("Seleccioná la coincidencia exacta de Origen:", list(opciones_orig_dict.keys()), key="sel_o")
             coords_orig = opciones_orig_dict[sel_orig]
         elif txt_origen.strip():
-            st.warning("⚠️ Escribí más detalles o verificá el nombre de la calle/ciudad.")
+            st.warning("⚠️ Ingresá calle y altura (ej: Rivadavia 2000) para buscar coincidencia.")
         else:
             coords_orig = (lat_gps, lon_gps)
 
     with col_dest:
-        txt_destino = st.text_input("2. Buscar Destino:", placeholder="Ej: Plaza de Mayo, Buenos Aires")
+        txt_destino = st.text_input("2. Destino (Calle y Altura / Lugar):", placeholder="Ej: Plaza de Mayo, CABA")
         sug_destino = buscar_direcciones_similares(txt_destino)
         coords_dest = None
         
         if sug_destino:
             opciones_dest_dict = {item["display_name"]: (item["lat"], item["lon"]) for item in sug_destino}
-            sel_dest = st.selectbox("Coincidencias de Destino encontradas:", list(opciones_dest_dict.keys()))
+            sel_dest = st.selectbox("Seleccioná la coincidencia exacta de Destino:", list(opciones_dest_dict.keys()), key="sel_d")
             coords_dest = opciones_dest_dict[sel_dest]
         elif txt_destino.strip():
-            st.warning("⚠️ Escribí más detalles para listar ubicaciones exactas.")
+            st.warning("⚠️ Ingresá calle y altura para listar ubicaciones exactas.")
 
     st.divider()
 
     if coords_orig and coords_dest:
         tiempo_est = st.number_input("Tiempo estimado de traslado (minutos)", min_value=1, value=15)
         
-        st.subheader("📍 Visualización de Trazado en Mapa")
-        tipo_ruta = st.radio(
-            "Seleccioná la trayectoria a visualizar en el mapa:",
-            ["🔵 Ruta Principal (Estándar)", "🟠 Plan B (Desvío por Siniestro / Choque)", "🔴 Plan C (Desvío Perimetral por Corte)"],
-            horizontal=True
-        )
+        st.subheader("📍 Visualización de Trazado y Planes de Emergencia")
+        
+        # Botones de un solo clic para alternar planes
+        col_b1, col_b2, col_b3 = st.columns(3)
+        with col_b1:
+            if st.button("🔵 Ver PLAN A (Ruta Principal)", use_container_width=True):
+                st.session_state["plan_activo"] = "Plan A"
+        with col_b2:
+            if st.button("🟠 Ver PLAN B (Desvío Choque)", use_container_width=True):
+                st.session_state["plan_activo"] = "Plan B"
+        with col_b3:
+            if st.button("🔴 Ver PLAN C (Desvío Corte)", use_container_width=True):
+                st.session_state["plan_activo"] = "Plan C"
+
+        st.info(f"📌 *Plan visualizado actualmente:* {st.session_state['plan_activo']}")
 
         texto_clima, estado_clima = obtener_clima_detallado(coords_orig[0], coords_orig[1])
         st.info(f"🌤️ Estado del Clima: {texto_clima}")
@@ -203,9 +210,10 @@ if seccion == "🗺️ Planificación de Rutas":
                 "origen": txt_origen if txt_origen else "Ubicación GPS",
                 "destino": txt_destino,
                 "tiempo": f"{tiempo_est} min",
-                "clima": estado_clima
+                "clima": estado_clima,
+                "plan": st.session_state["plan_activo"]
             })
-            st.success("✅ Recorrido guardado.")
+            st.success("✅ Recorrido guardado con éxito.")
 
         puntos_terrestres, pasos_calles = obtener_ruta_terrestre(coords_orig[0], coords_orig[1], coords_dest[0], coords_dest[1])
 
@@ -215,19 +223,21 @@ if seccion == "🗺️ Planificación de Rutas":
         folium.Marker(coords_orig, popup="Origen", icon=folium.Icon(color="green", icon="play")).add_to(m)
         folium.Marker(coords_dest, popup="Destino", icon=folium.Icon(color="red", icon="flag")).add_to(m)
 
-        if "Ruta Principal" in tipo_ruta:
+        plan = st.session_state["plan_activo"]
+        if plan == "Plan A":
             if puntos_terrestres:
-                folium.PolyLine(puntos_terrestres, color="blue", weight=6, opacity=0.85, popup="Ruta Principal Terrestre").add_to(m)
+                folium.PolyLine(puntos_terrestres, color="blue", weight=6, opacity=0.85, popup="Plan A: Ruta Principal").add_to(m)
             else:
                 folium.PolyLine([coords_orig, centro_mapa, coords_dest], color="blue", weight=5).add_to(m)
-        elif "Plan B" in tipo_ruta:
+            st.success("🟢 Mostrando en el mapa la Ruta Principal (Plan A).")
+        elif plan == "Plan B":
             desvio_b = [coords_orig, [coords_orig[0] + 0.003, coords_orig[1] - 0.003], coords_dest]
             folium.PolyLine(desvio_b, color="orange", weight=6, opacity=0.9, popup="Plan B: Ruta Alternativa por Choque").add_to(m)
-            st.warning("⚠️ Mostrando en el mapa la Ruta Alternativa PLAN B (Color Naranja).")
-        elif "Plan C" in tipo_ruta:
+            st.warning("⚠️ Mostrando en el mapa la Ruta Alternativa por Siniestro / Choque (Plan B - Naranja).")
+        elif plan == "Plan C":
             desvio_c = [coords_orig, [coords_orig[0] - 0.004, coords_orig[1] + 0.004], coords_dest]
             folium.PolyLine(desvio_c, color="red", weight=6, opacity=0.9, popup="Plan C: Ruta Alternativa por Corte").add_to(m)
-            st.error("🚨 Mostrando en el mapa la Ruta Alternativa PLAN C (Color Rojo).")
+            st.error("🚨 Mostrando en el mapa la Ruta Perimetral por Bloqueo / Corte (Plan C - Rojo).")
 
         folium.Marker(
             [coords_orig[0] + 0.002, coords_orig[1] + 0.002],
@@ -252,24 +262,23 @@ if seccion == "🗺️ Planificación de Rutas":
             st.caption("Transitar por avenidas principales conectoras.")
 
         st.divider()
-        st.subheader("📋 Detalle de Rutas Alternativas")
-        calle_1 = pasos_calles[0].split("**")[1] if (pasos_calles and len(pasos_calles) > 0 and "**" in pasos_calles[0]) else "Arteria Lateral"
-        calle_2 = pasos_calles[1].split("**")[1] if (pasos_calles and len(pasos_calles) > 1 and "**" in pasos_calles[1]) else "Avenida Conectora"
+        st.subheader("📋 Detalle de Protocolos de Desvío")
+        calle_1 = pasos_calles[0].split("*")[1] if (pasos_calles and len(pasos_calles) > 0 and "*" in pasos_calles[0]) else "Arteria Lateral"
+        calle_2 = pasos_calles[1].split("*")[1] if (pasos_calles and len(pasos_calles) > 1 and "*" in pasos_calles[1]) else "Avenida Conectora"
 
         c1, c2 = st.columns(2)
         with c1:
-            st.info(f"🟠 **PLAN B (Evasión por Siniestro / Choque)**\n\n"
-                    f"**Desvío:** Giro preventivo hacia **{calle_1}**, evitando el cuello de botella y conectando más adelante con **{calle_2}**.")
+            st.info(f"🟠 *PLAN B (Evasión por Siniestro / Choque)*\n\n"
+                    f"*Desvío:* Giro preventivo hacia *{calle_1}, evitando el cuello de botella y conectando más adelante con *{calle_2}**.")
         with c2:
-            st.info(f"🔴 **PLAN C (Evasión por Corte / Bloqueo)**\n\n"
-                    f"**Desvío:** Perímetro de seguridad ampliado por la arteria externa paralela a **{calle_2}**, asegurando vías despejadas de evacuación.")
+            st.info(f"🔴 *PLAN C (Evasión por Corte / Bloqueo)*\n\n"
+                    f"*Desvío:* Perímetro de seguridad ampliado por la arteria externa paralela a *{calle_2}*, asegurando vías despejadas de evacuación.")
 
     st.divider()
-    st.subheader("📜 Historial de Rutas")
+    st.subheader("📜 Historial de Rutas Guardadas")
     if st.session_state["historial_rutas"]:
         st.dataframe(pd.DataFrame(st.session_state["historial_rutas"]), use_container_width=True)
 
-# --- MÓDULO 2: CONTROL DE EDIFICIOS ---
 elif seccion == "🏢 Entradas/Salidas de Edificios":
     st.header("🏢 Registro e Inspección de Edificios Privados")
     es_admin = st.session_state["user_role"] == "Administrador"
@@ -280,7 +289,7 @@ elif seccion == "🏢 Entradas/Salidas de Edificios":
         direccion_edf = st.text_input("Dirección Completa")
         desc_accesos = st.text_area("Descripción de Entradas, Salidas y Puntos de Evacuación")
         
-        st.write("📷 **Fotografía / Plano del Edificio**")
+        st.write("📷 *Fotografía / Plano del Edificio*")
         foto_subida = st.file_uploader("Opción 1: Subir archivo", type=["jpg", "png", "jpeg", "pdf"])
         foto_camara = st.camera_input("Opción 2: Capturar foto en vivo")
 
@@ -318,8 +327,8 @@ elif seccion == "🏢 Entradas/Salidas de Edificios":
         for edf in lista_edificios:
             estado_vis = "🔒 Privado (Admin)" if edf["privado"] else "🌐 Público (Todos)"
             with st.expander(f"🏢 {edf['nombre']} - {edf['direccion']} | [{estado_vis}]"):
-                st.write(f"**Accesos y Salidas:** {edf['descripcion']}")
-                st.write(f"**Archivo / Foto:** {edf['adjunto']}")
+                st.write(f"*Accesos y Salidas:* {edf['descripcion']}")
+                st.write(f"*Archivo / Foto:* {edf['adjunto']}")
                 if es_admin:
                     st.divider()
                     if edf["privado"]:
@@ -333,7 +342,6 @@ elif seccion == "🏢 Entradas/Salidas de Edificios":
     else:
         st.caption("No hay edificios registrados.")
 
-# --- MÓDULO 3: GESTIÓN DE USUARIOS ---
 elif seccion == "👥 Gestión de Usuarios":
     st.header("👥 Panel de Administración de Usuarios")
     
@@ -353,7 +361,7 @@ elif seccion == "👥 Gestión de Usuarios":
         if u != "admin":
             col_info, col_btn = st.columns([3, 1])
             estado_texto = "🟢 Activo" if datos["activo"] else "🔴 Inactivo"
-            col_info.write(f"**Usuario:** {u} | **Rol:** {datos['rol']} | **Estado:** {estado_texto}")
+            col_info.write(f"*Usuario:* {u} | *Rol:* {datos['rol']} | *Estado:* {estado_texto}")
             if datos["activo"]:
                 if col_btn.button("Desactivar", key=f"des_{u}"):
                     st.session_state["usuarios"][u]["activo"] = False
