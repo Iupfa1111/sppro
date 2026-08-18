@@ -76,7 +76,7 @@ BASE_CONOCIMIENTO = {
         "altura": "25 msnm",
         "hospitales": ["Hospital General de Agudos B. Rivadavia (Av. Las Heras 2670)", "Hospital Ramos Mejía (Urquiza 609)"],
         "comisarias": ["Comisaría Vecinal 3B (Pasco 473)", "Comisaría Vecinal 1B (Av. de Mayo 1269)"],
-        "pfa": ["División Custodia Congreso (Dentro del edificio)", "Comisaría PFA - Delegación Congreso"],
+        "pfa": ["Departamento Central de la Policía Federal Argentina (Moreno 1550)"],
         "ffaa": ["Estado Mayor Conjunto de las FFAA (Paseo Colón 1401)", "Edificio Libertador (Azopardo 250)"]
     },
     "Hotel Hilton": {
@@ -85,7 +85,7 @@ BASE_CONOCIMIENTO = {
         "altura": "8 msnm",
         "hospitales": ["Hospital General de Agudos Dr. C. Argerich (Pi y Margall 750)"],
         "comisarias": ["Comisaría Vecinal 1E (Av. Belgrano 340)"],
-        "pfa": ["Prefectura Naval Argentina - Puerto Madero (Jurisdicción Especial)", "Delegación PFA Puerto Madero"],
+        "pfa": ["Policía Científica PFA (Azopardo 670)"],
         "ffaa": ["Estado Mayor General de la Armada (Comodoro Py 2055)"]
     },
     "Casa Rosada": {
@@ -94,7 +94,7 @@ BASE_CONOCIMIENTO = {
         "altura": "10 msnm",
         "hospitales": ["Hospital Argerich (Pi y Margall 750)", "Hospital Santa Lucía (Av. San Juan 2021)"],
         "comisarias": ["Comisaría Vecinal 1D (Av. Belgrano 340)"],
-        "pfa": ["División Seguridad Casa de Gobierno (En el predio)", " Superintendencia de Seguridad Metropolitana PFA"],
+        "pfa": ["Departamento Central de la Policía Federal Argentina (Moreno 1550)", "Policía Científica PFA (Azopardo 670)"],
         "ffaa": ["Edificio Libertador - Ministerio de Defensa (Azopardo 250)"]
     },
     "Teatro Colón": {
@@ -103,7 +103,7 @@ BASE_CONOCIMIENTO = {
         "altura": "22 msnm",
         "hospitales": ["Hospital General de Agudos B. Rivadavia (Av. Las Heras 2670)"],
         "comisarias": ["Comisaría Vecinal 1A (Suipacha 1156)"],
-        "pfa": ["División Protección Barrial Centro PFA"],
+        "pfa": ["Departamento Central de la Policía Federal Argentina (Moreno 1550)"],
         "ffaa": ["Estado Mayor General del Ejército (Azopardo 250)"]
     },
     "Palacio Barolo": {
@@ -112,7 +112,7 @@ BASE_CONOCIMIENTO = {
         "altura": "24 msnm",
         "hospitales": ["Hospital Ramos Mejía (Urquiza 609)", "Hospital Santa Lucía (Av. San Juan 2021)"],
         "comisarias": ["Comisaría Vecinal 1B (Av. de Mayo 1269)"],
-        "pfa": ["Delegación PFA Zona Congreso-Centro"],
+        "pfa": ["Departamento Central de la Policía Federal Argentina (Moreno 1550)"],
         "ffaa": ["Círculo Militar (Plaza San Martín)"]
     },
     "Hotel Alvear": {
@@ -121,7 +121,7 @@ BASE_CONOCIMIENTO = {
         "altura": "26 msnm",
         "hospitales": ["Hospital Fernán Pérez de Quirno / Fernández (Cerviño 3356)"],
         "comisarias": ["Comisaría Vecinal 2A (Av. Las Heras 1861)"],
-        "pfa": ["Delegación PFA Recoleta"],
+        "pfa": ["Cuerpo policía montada de la PFA (Cavia 3302)"],
         "ffaa": ["Guarnición Militar Buenos Aires (Palermo)"]
     },
     "Sheraton Buenos Aires Hotel": {
@@ -130,7 +130,7 @@ BASE_CONOCIMIENTO = {
         "altura": "12 msnm",
         "hospitales": ["Hospital Fernández (Cerviño 3356)"],
         "comisarias": ["Comisaría Vecinal 1A (Suipacha 1156)"],
-        "pfa": ["Superintendencia de Investigaciones Federales PFA (Cavia 3350 / Retiro)"],
+        "pfa": ["Cuerpo policía montada de la PFA (Cavia 3302)"],
         "ffaa": ["Edificio Cóndor - Fuerza Aérea Argentina (Comodoro Py 2550)"]
     },
     "Luna Park": {
@@ -139,7 +139,7 @@ BASE_CONOCIMIENTO = {
         "altura": "11 msnm",
         "hospitales": ["Hospital Argerich (Pi y Margall 750)"],
         "comisarias": ["Comisaría Vecinal 1A (Suipacha 1156)"],
-        "pfa": ["Comisaría PFA Madero / Zona Portuaria"],
+        "pfa": ["Policía Científica PFA (Azopardo 670)"],
         "ffaa": ["Estado Mayor General de la Armada (Comodoro Py 2055)"]
     }
 }
@@ -156,14 +156,25 @@ if "resultado_busqueda" not in st.session_state:
     st.session_state["resultado_busqueda"] = None
 
 # ==========================================
-# 4. GENERADOR DE PDF (Actualizado con PFA y FFAA)
+# 4. CLASE PDF PERSONALIZADA (Con pie de página en última hoja)
+# ==========================================
+class PDFReporte(FPDF):
+    def footer(self):
+        # Posicionarse a 15 mm del final
+        self.set_y(-15)
+        self.set_font("Arial", "", 8)
+        # Imprime "by Angel Ibañez" en la última hoja / pie de página
+        self.cell(0, 10, "by Angel Ibañez", 0, 0, "R")
+
+# ==========================================
+# 5. GENERADOR DE PDF (Actualizado con Título y Pie de Página)
 # ==========================================
 def generar_pdf_evento(edificio, direccion, fecha_hora, clima, altura, accesos, hospitales, comisarias, pfa, ffaa):
-    pdf = FPDF()
+    pdf = PDFReporte()
     pdf.add_page()
     pdf.set_font("Arial", "B", 16)
     
-    pdf.cell(200, 10, txt="SPPRO - REPORTE DE VERIFICACIÓN DE EDIFICIO", ln=True, align="C")
+    pdf.cell(200, 10, txt="VERIFICACIÓN INTELIGENTE DE EDIFICIOS (SPPRO)", ln=True, align="C")
     pdf.set_font("Arial", "", 10)
     pdf.cell(200, 6, txt="Sistema de Seguridad Patrimonial by Angel Ibañez", ln=True, align="C")
     pdf.line(10, 25, 200, 25)
@@ -189,9 +200,9 @@ def generar_pdf_evento(edificio, direccion, fecha_hora, clima, altura, accesos, 
     pdf.cell(200, 8, txt="3. Puntos Seguros y Fuerzas de Apoyo Cercanas", ln=True)
     pdf.set_font("Arial", "", 9)
     pdf.multi_cell(0, 6, txt=f"Hospitales:\n" + "\n".join([f"• {h}" for h in hospitales]) + 
-                             f"\n\nComisarías (Policía de la Ciudad):\n" + "\n".join([f"• {c}" for c in comisarias]) +
-                             f"\n\nPolicía Federal Argentina (PFA):\n" + "\n".join([f"• {p}" for p in pfa]) +
-                             f"\n\nFuerzas Armadas (FFAA):\n" + "\n".join([f"• {f}" for f in ffaa]))
+                            f"\n\nComisarías (Policía de la Ciudad):\n" + "\n".join([f"• {c}" for c in comisarias]) +
+                            f"\n\nPolicía Federal Argentina (PFA):\n" + "\n".join([f"• {p}" for p in pfa]) +
+                            f"\n\nFuerzas Armadas (FFAA):\n" + "\n".join([f"• {f}" for f in ffaa]))
     
     pdf.ln(10)
     pdf.set_font("Arial", "B", 10)
@@ -200,7 +211,7 @@ def generar_pdf_evento(edificio, direccion, fecha_hora, clima, altura, accesos, 
     return pdf.output(dest="S").encode("latin1")
 
 # ==========================================
-# 5. LOGIN
+# 6. LOGIN
 # ==========================================
 if not st.session_state["logged_in"]:
     st.title("SPPRO")
@@ -281,7 +292,7 @@ if seccion == "🏢 Verificación de Edificios":
             altura_automatica = "20 msnm"
             hospitales_auto = ["Hospital General más cercano (Ver sección Puntos Seguros)"]
             comisarias_auto = ["Comisaría de la jurisdicción local"]
-            pfa_auto = ["Delegación PFA jurisdiccional"]
+            pfa_auto = ["Departamento Central de la Policía Federal Argentina (Moreno 1550)"]
             ffaa_auto = ["Unidad de Guarnición de las FFAA cercana"]
 
         st.divider()
@@ -326,7 +337,6 @@ if seccion == "🏢 Verificación de Edificios":
         if st.session_state["resultado_busqueda"]:
             res_pdf = st.session_state["resultado_busqueda"]
             
-            # Se permite capturar accesos provisorios de la session o formulario rápido
             accesos_temp = st.text_area("Notas sobre accesos para el reporte instantáneo:", value="Accesos principales verificados por operador.")
             
             fecha_rep_inst = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -424,7 +434,7 @@ if seccion == "🏢 Verificación de Edificios":
                         "altura": "20 msnm", 
                         "hospitales": ["Hospital General cercano"], 
                         "comisarias": ["Comisaría local"],
-                        "pfa": ["Delegación PFA local"],
+                        "pfa": ["Departamento Central de la Policía Federal Argentina (Moreno 1550)"],
                         "ffaa": ["Unidad de las FFAA cercana"]
                     })
                     
@@ -481,9 +491,10 @@ elif seccion == "🏥 Puntos Seguros Cercanos":
 
     with tab_fed:
         st.markdown("### Destinos y Dependencias de la Policía Federal Argentina (PFA)")
-        st.write("• *Superintendencia de Investigaciones Federales* - Cavia 3350, CABA")
-        st.write("• *División Custodia Congreso* - Av. Rivadavia 1864, CABA")
-        st.write("• *División Seguridad Casa de Gobierno* - Balcarce 50, CABA")
+        st.write("• *Departamento central de la policía federal argentina* - Moreno 1550, CABA")
+        st.write("• *Cuerpo policía montada de la PFA* - Cavia 3302, CABA")
+        st.write("• *Cuerpo policía motorizada PFA* - Av. Vélez Sarsfield 1981, CABA")
+        st.write("• *Policía científica PFA* - Azopardo 670, CABA")
 
     with tab_ffaa:
         st.markdown("### Cuarteles y Edificios de las Fuerzas Armadas (FFAA)")
