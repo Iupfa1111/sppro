@@ -1,6 +1,7 @@
 streamlit
-pandas
-folium
 streamlit-folium
 streamlit-js-eval
 requests
+pandas
+folium
+fpdf
