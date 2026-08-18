@@ -44,11 +44,12 @@ def init_db():
         )
     """)
     
+    # Asegurar de forma segura que la columna privado exista siempre
     try:
         cursor.execute("ALTER TABLE edificios ADD COLUMN privado INTEGER NOT NULL DEFAULT 0")
-    except:
+    except sqlite3.OperationalError:
         pass
-        
+          
     cursor.execute("SELECT COUNT(*) FROM usuarios")
     if cursor.fetchone()[0] == 0:
         cursor.execute("INSERT INTO usuarios VALUES (?, ?, ?, ?)", ("admin", "admin123", 1, "Administrador"))
@@ -332,7 +333,14 @@ if seccion == "🏢 Verificación de Edificios":
         st.subheader("📋 Historial de Edificios y Generación de Reportes PDF")
         conn = sqlite3.connect("sppro.db")
         cursor = conn.cursor()
-        cursor.execute("SELECT id, nombre, direccion, accesos, privado FROM edificios")
+        
+        # Garantizar compatibilidad por si la tabla vieja no tiene la columna privado
+        try:
+            cursor.execute("SELECT id, nombre, direccion, accesos, privado FROM edificios")
+        except sqlite3.OperationalError:
+            cursor.execute("ALTER TABLE edificios ADD COLUMN privado INTEGER NOT NULL DEFAULT 0")
+            cursor.execute("SELECT id, nombre, direccion, accesos, privado FROM edificios")
+            
         edificios_lista = cursor.fetchall()
         conn.close()
         
@@ -342,7 +350,6 @@ if seccion == "🏢 Verificación de Edificios":
                     st.write(f"*Dirección:* {direccion}")
                     st.write(f"*Accesos y Salidas:* {accesos}")
                     
-                    # Extraer datos automáticos si el edificio es conocido, sino usar genéricos
                     datos_extra = BASE_CONOCIMIENTO.get(nombre, {
                         "clima": "☀️ Despejado / 21°C", 
                         "altura": "20 msnm", 
