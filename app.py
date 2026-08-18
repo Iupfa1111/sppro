@@ -6,7 +6,6 @@ import requests
 import streamlit as st
 from streamlit_folium import st_folium
 from streamlit_js_eval import get_geolocation
-# Importación para generación de PDF profesional
 from fpdf import FPDF
 
 st.set_page_config(page_title="SPPRO by Angel Ibañez", layout="wide")
@@ -51,15 +50,6 @@ def init_db():
     """)
     
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS rutas_frecuentes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre_ruta TEXT,
-            origen TEXT,
-            destino TEXT
-        )
-    """)
-    
-    cursor.execute("""
         CREATE TABLE IF NOT EXISTS zonas_riesgo (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             descripcion TEXT,
@@ -69,7 +59,6 @@ def init_db():
         )
     """)
 
-    # Tabla de caché local para modo offline (Calles y Coordenadas frecuentes)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS cache_calles_offline (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -101,32 +90,47 @@ if "logged_in" not in st.session_state:
 if "plan_activo" not in st.session_state:
     st.session_state["plan_activo"] = "Plan A"
 
-WMO_CODES = {
-    0: "☀️ Despejado / Soleado", 1: "🌤️ Mayormente despejado", 2: "⛅ Parcialmente nublado",
-    3: "☁️ Cubierto / Nublado", 45: "🌫️ Niebla", 51: "🌧️ Llovizna ligera",
-    61: "🌧️ Lluvia ligera", 63: "🌧️ Lluvia moderada", 65: "🌧️ Lluvia fuerte", 95: "🌩️ Tormenta eléctrica"
-}
-
 # ==========================================
-# FUNCIONES AUXILIARES CON SOPORTE OFFLINE Y GEOCERCAS
+# BUSCADOR ESTRUCTURADO DE ALTA PRECISIÓN (GEOLOCALIZACIÓN BLINDADA)
 # ==========================================
-def buscar_direcciones_similares(query):
-    if not query or len(query.strip()) < 3:
+def buscar_calle_estructurada(calle_input, altura_input, localidad_input):
+    if not calle_input or len(calle_input.strip()) < 2:
         return []
     
-    query_limpio = query.lower().strip()
-    if " y " in query_limpio:
-        query_procesado = query_limpio.replace(" y ", ", esquina ")
-    else:
-        query_procesado = query_limpio
+    calle_limpia = calle_input.strip()
+    altura_limpia = altura_input.strip() if altura_input else ""
+    
+    localidades_dict = {
+        "CABA (Ciudad Autónoma de Bs. As.)": "Ciudad Autónoma de Buenos Aires",
+        "GBA Zona Norte": "Partido de Vicente López, Buenos Aires",
+        "GBA Zona Oeste": "Partido de Morón, Buenos Aires",
+        "GBA Zona Sur": "Partido de Avellaneda, Buenos Aires",
+        "La Plata y Alrededores": "La Plata, Buenos Aires"
+    }
+    zona_geo = localidades_dict.get(localidad_input, "Buenos Aires")
 
-    if not any(z in query_procesado for z in ["buenos aires", "caba", "gba", "argentina"]):
-        query_procesado = f"{query_procesado}, Buenos Aires, Argentina"
-
-    # 1. Intentar consulta online vía API
     try:
         url = "https://nominatim.openstreetmap.org/search"
-        params = {"q": query_procesado, "format": "json", "addressdetails": 1, "limit": 5, "countrycodes": "ar"}
+        
+        if altura_limpia:
+            params = {
+                "street": f"{altura_limpia} {calle_limpia}",
+                "city": zona_geo,
+                "format": "json",
+                "addressdetails": 1,
+                "limit": 5,
+                "countrycodes": "ar"
+            }
+        else:
+            query_cruce = calle_limpia.replace(" y ", " esquina ")
+            params = {
+                "q": f"{query_cruce}, {zona_geo}, Argentina",
+                "format": "json",
+                "addressdetails": 1,
+                "limit": 5,
+                "countrycodes": "ar"
+            }
+
         headers = {"User-Agent": "SPPRO_App_AngelIbanez"}
         res = requests.get(url, params=params, headers=headers, timeout=4).json()
         
@@ -136,33 +140,31 @@ def buscar_direcciones_similares(query):
         
         for item in res:
             address = item.get("address", {})
-            calle = address.get("road") or address.get("pedestrian") or address.get("residential", "")
-            numero = address.get("house_number", "")
-            barrio = address.get("suburb") or address.get("neighbourhood", "")
-            ciudad = address.get("city") or address.get("town") or address.get("county", "")
+            road = address.get("road", calle_limpia)
+            house_num = address.get("house_number", altura_limpia)
+            city_name = address.get("city") or address.get("town") or address.get("suburb", zona_geo)
             
-            etiqueta = f"{calle} {numero}".strip()
-            if barrio or ciudad:
-                etiqueta += f" ({barrio or ciudad})"
-            else:
-                etiqueta += f" - {item.get('display_name', '')}"
+            etiqueta = f"{road}"
+            if house_num:
+                etiqueta += f" {house_num}"
+            etiqueta += f" ({city_name})"
 
             lat_val = float(item["lat"])
             lon_val = float(item["lon"])
             
             opciones.append({"display_name": etiqueta, "lat": lat_val, "lon": lon_val})
             
-            # Guardar en caché local SQLite (Modo Offline)
+            # Caché local para modo offline
             cursor.execute("INSERT OR REPLACE INTO cache_calles_offline (consulta, lat, lon, display_name) VALUES (?, ?, ?, ?)",
-                           (query_limpio, lat_val, lon_val, etiqueta))
+                           (f"{calle_limpia}{altura_limpia}{localidad_input}".lower(), lat_val, lon_val, etiqueta))
         conn.commit()
         conn.close()
         return opciones
     except:
-        # 2. Respaldo por Caché Local SQLite si no hay conexión a internet (Modo Offline)
+        # Respaldo SQLite en caso de fallo de red
         conn = sqlite3.connect("sppro.db")
         cursor = conn.cursor()
-        cursor.execute("SELECT display_name, lat, lon FROM cache_calles_offline WHERE consulta LIKE ?", (f"%{query_limpio}%",))
+        cursor.execute("SELECT display_name, lat, lon FROM cache_calles_offline WHERE consulta LIKE ?", (f"%{calle_limpia.lower()}%",))
         cached = cursor.fetchall()
         conn.close()
         
@@ -195,10 +197,6 @@ def obtener_ruta_terrestre(lat_orig, lon_orig, lat_dest, lon_dest, tipo_ruta="pr
     return None, []
 
 def verificar_geocercas_ruta(puntos_ruta):
-    """
-    1. SISTEMA DE GEOCERCAS DINÁMICAS: Compara cada punto de la ruta 
-    con las zonas de riesgo guardadas y retorna alertas de intersección.
-    """
     if not puntos_ruta:
         return []
     
@@ -212,22 +210,17 @@ def verificar_geocercas_ruta(puntos_ruta):
     for punto in puntos_ruta:
         p_lat, p_lon = punto[0], punto[1]
         for desc, z_lat, z_lon, radio in zonas:
-            # Fórmula de distancia euclidiana aproximada en grados convertida a km (111 km por grado)
             distancia_km = ((p_lat - z_lat) * 2 + (p_lon - z_lon) * 2) ** 0.5 * 111
             if distancia_km <= radio:
                 alertas_detectadas.add(desc)
                 
     return list(alertas_detectadas)
 
-def generar_pdf_hoja_ruta(origen, destino, plan, tiempo, clima, pasos):
-    """
-    2. GENERADOR DE HOJA DE RUTA TÁCTICA EN PDF: Exporta un reporte ejecutivo listo para imprimir.
-    """
+def generar_pdf_hoja_ruta(origen, destino, plan, tiempo, pasos):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", "B", 16)
     
-    # Encabezado corporativo
     pdf.cell(200, 10, txt="SPPRO - HOJA DE RUTA TÁCTICA OPERATIVA", ln=True, align="C")
     pdf.set_font("Arial", "", 10)
     pdf.cell(200, 6, txt=f"Fecha de emisión: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True, align="C")
@@ -242,7 +235,6 @@ def generar_pdf_hoja_ruta(origen, destino, plan, tiempo, clima, pasos):
     pdf.cell(200, 6, txt=f"- Destino: {destino}", ln=True)
     pdf.cell(200, 6, txt=f"- Plan Aplicado: {plan}", ln=True)
     pdf.cell(200, 6, txt=f"- Tiempo Estimado: {tiempo}", ln=True)
-    pdf.cell(200, 6, txt=f"- Estado Meteorológico: {clima}", ln=True)
     
     pdf.ln(5)
     pdf.set_font("Arial", "B", 12)
@@ -322,35 +314,55 @@ if seccion == "🗺️ Planificación de Rutas":
         lon_gps = loc["coords"]["longitude"]
 
     col_orig, col_dest = st.columns(2)
-    
-    if "input_origen_val" not in st.session_state:
-        st.session_state["input_origen_val"] = ""
-    if "input_destino_val" not in st.session_state:
-        st.session_state["input_destino_val"] = ""
 
     with col_orig:
-        txt_origen = st.text_input("1. Origen (Altura, Calle X y Calle Y):", value=st.session_state["input_origen_val"], key="txt_o")
-        sug_origen = buscar_direcciones_similares(txt_origen)
-        coords_orig = None
+        st.markdown("### 1. Origen")
+        loc_origen = st.selectbox("Jurisdicción Origen:", [
+            "CABA (Ciudad Autónoma de Bs. As.)", 
+            "GBA Zona Norte", 
+            "GBA Zona Oeste", 
+            "GBA Zona Sur", 
+            "La Plata y Alrededores"
+        ], key="loc_o")
         
+        c_orig = st.text_input("Calle o Intersección (Ej: Corrientes o Callao y Corrientes)", key="c_o")
+        h_orig = st.text_input("Altura / Número (Opcional, ej: 1500)", key="h_o")
+        
+        sug_origen = buscar_calle_estructurada(c_orig, h_orig, loc_origen)
+        coords_orig = None
+
         if sug_origen:
-            opciones_orig_dict = {item["display_name"]: (item["lat"], item["lon"]) for item in sug_origen}
-            sel_orig = st.selectbox("Seleccionar coincidencia (Origen):", list(opciones_orig_dict.keys()), key="sel_o")
-            coords_orig = opciones_orig_dict[sel_orig]
-        elif txt_origen.strip():
+            op_o = {item["display_name"]: (item["lat"], item["lon"]) for item in sug_origen}
+            sel_o = st.selectbox("Confirmar Dirección Exacta (Origen):", list(op_o.keys()), key="box_o")
+            coords_orig = op_o[sel_o]
+        elif c_orig.strip():
+            st.warning("⚠️ Sin resultados automáticos. Verifique los datos o se usará GPS.")
             coords_orig = (lat_gps, lon_gps)
         else:
             coords_orig = (lat_gps, lon_gps)
 
     with col_dest:
-        txt_destino = st.text_input("2. Destino (Altura, Calle X y Calle Y):", value=st.session_state["input_destino_val"], key="txt_d")
-        sug_destino = buscar_direcciones_similares(txt_destino)
-        coords_dest = None
+        st.markdown("### 2. Destino")
+        loc_destino = st.selectbox("Jurisdicción Destino:", [
+            "CABA (Ciudad Autónoma de Bs. As.)", 
+            "GBA Zona Norte", 
+            "GBA Zona Oeste", 
+            "GBA Zona Sur", 
+            "La Plata y Alrededores"
+        ], key="loc_d")
         
+        c_dest = st.text_input("Calle o Intersección Destino", key="c_d")
+        h_dest = st.text_input("Altura / Número Destino (Opcional)", key="h_d")
+        
+        sug_destino = buscar_calle_estructurada(c_dest, h_dest, loc_destino)
+        coords_dest = None
+
         if sug_destino:
-            opciones_dest_dict = {item["display_name"]: (item["lat"], item["lon"]) for item in sug_destino}
-            sel_dest = st.selectbox("Seleccionar coincidencia (Destino):", list(opciones_dest_dict.keys()), key="sel_d")
-            coords_dest = opciones_dest_dict[sel_dest]
+            op_d = {item["display_name"]: (item["lat"], item["lon"]) for item in sug_destino}
+            sel_d = st.selectbox("Confirmar Dirección Exacta (Destino):", list(op_d.keys()), key="box_d")
+            coords_dest = op_d[sel_d]
+        elif c_dest.strip():
+            st.warning("⚠️ Sin resultados exactos para el destino.")
 
     st.divider()
 
@@ -370,15 +382,13 @@ if seccion == "🗺️ Planificación de Rutas":
 
         st.info(f"📌 Plan visualizado: {st.session_state['plan_activo']}")
 
-        # Cargar trazado activo
         plan = st.session_state["plan_activo"]
         tipo = "principal" if plan == "Plan A" else ("plan_b" if plan == "Plan B" else "plan_c")
         puntos_terrestres, pasos_calles = obtener_ruta_terrestre(coords_orig[0], coords_orig[1], coords_dest[0], coords_dest[1], tipo_ruta=tipo)
 
-        # 1. VERIFICACIÓN AUTOMÁTICA DE GEOCERCAS SOBRE LA RUTA
         alertas_geocercas = verificar_geocercas_ruta(puntos_terrestres)
         if alertas_geocercas:
-            st.error(f"🚨 *ALERTA CRÍTICA DE GEOCERCA:* ¡El trayecto seleccionado interseca o atraviesa zonas de riesgo activas! ({', '.join(alertas_geocercas)})")
+            st.error(f"🚨 *ALERTA CRÍTICA DE GEOCERCA:* ¡El trayecto seleccionado interseca zonas de riesgo activas! ({', '.join(alertas_geocercas)})")
 
         centro_mapa = [(coords_orig[0] + coords_dest[0]) / 2, (coords_orig[1] + coords_dest[1]) / 2]
         m = folium.Map(location=centro_mapa, zoom_start=14)
@@ -406,11 +416,10 @@ if seccion == "🗺️ Planificación de Rutas":
             st.subheader("📥 Exportación de Reporte")
             if st.button("Generar Hoja de Ruta en PDF", use_container_width=True):
                 pdf_bytes = generar_pdf_hoja_ruta(
-                    txt_origen if txt_origen else "GPS Actual",
-                    txt_destino,
+                    c_orig if c_orig else "GPS Actual",
+                    c_dest,
                     plan,
                     f"{tiempo_est} min",
-                    "Condición Normal",
                     pasos_calles
                 )
                 st.download_button(
