@@ -10,193 +10,215 @@ st.set_page_config(
     page_icon="🛡️",
 )
 
-# --- LISTA COMPLETA DE LOS 30 EDIFICIOS EMBLEMÁTICOS DE CABA ---
-lista_edificios = {
-    "Edificio Kavanagh": {
-        "dir": "Florida 1065, Retiro",
-        "alt": "120 m",
-        "acc": "Acceso Principal / Cocheras",
-        "coords": "-34.5922, -58.3753",
-    },
-    "Palacio Barolo": {
-        "dir": "Av. de Mayo 1370, Monserrat",
-        "alt": "100 m",
-        "acc": "Acceso Principal / Carga",
-        "coords": "-34.6095, -58.3860",
-    },
-    "Teatro Colón": {
-        "dir": "Cerrito 628, San Nicolás",
-        "alt": "30 m",
-        "acc": "Libertad / Tucumán",
-        "coords": "-34.6011, -58.3816",
-    },
-    "Congreso de la Nación Argentina": {
-        "dir": "Av. Entre Ríos 50, Balvanera",
-        "alt": "80 m",
-        "acc": "Principal / Protocolar",
-        "coords": "-34.6099, -58.3916",
-    },
-    "Casa Rosada": {
-        "dir": "Balcarce 50, Monserrat",
-        "alt": "24 m",
-        "acc": "Balcarce 24 / Explanada",
-        "coords": "-34.6081, -58.3702",
-    },
-    "Edificio Libertador (Min. de Defensa)": {
-        "dir": "Azopardo 250, Monserrat",
-        "alt": "45 m",
-        "acc": "Azopardo / Paseo Colón",
-        "coords": "-34.6118, -58.3695",
-    },
-    "Edificio Centinela (Gendarmería)": {
-        "dir": "Av. Antártida Argentina 1480, Retiro",
-        "alt": "40 m",
-        "acc": "Acceso General",
-        "coords": "-34.5885, -58.3731",
-    },
-    "Edificio Cóndor (Fuerza Aérea)": {
-        "dir": "Comodoro Py 2055, Retiro",
-        "alt": "35 m",
-        "acc": "Comodoro Py",
-        "coords": "-34.5862, -58.3694",
-    },
-    "Catedral Metropolitana": {
-        "dir": "San Martín 27, San Nicolás",
-        "alt": "25 m",
-        "acc": "Acceso Frontal",
-        "coords": "-34.6075, -58.3737",
-    },
-    "Cabildo de Buenos Aires": {
-        "dir": "Bolívar 65, Monserrat",
-        "alt": "20 m",
-        "acc": "Acceso Principal",
-        "coords": "-34.6084, -58.3732",
-    },
-    "Palacio de Justicia (Tribunales)": {
-        "dir": "Talcahuano 550, San Nicolás",
-        "alt": "50 m",
-        "acc": "Talcahuano / Lavalle",
-        "coords": "-34.6033, -58.3872",
-    },
-    "Facultad de Derecho UBA": {
-        "dir": "Av. Figueroa Alcorta 2263, Recoleta",
-        "alt": "35 m",
-        "acc": "Escinata Principal",
-        "coords": "-34.5833, -58.3897",
-    },
-    "Biblioteca Nacional": {
-        "dir": "Agüero 2502, Recoleta",
-        "alt": "40 m",
-        "acc": "Agüero / Las Heras",
-        "coords": "-34.5847, -58.4011",
-    },
-    "Galerías Pacífico": {
-        "dir": "Av. Florida 737, San Nicolás",
-        "alt": "25 m",
-        "acc": "Florida / Viamonte",
-        "coords": "-34.5997, -58.3744",
-    },
-    "CCK (Centro Cultural Kirchner)": {
-        "dir": "Sarmiento 151, Monserrat",
-        "alt": "40 m",
-        "acc": "Sarmiento / Alem",
-        "coords": "-34.6044, -58.3694",
-    },
-    "Hotel Alvear": {
-        "dir": "Av. Alvear 1891, Recoleta",
-        "alt": "50 m",
-        "acc": "Av. Alvear / Ayacucho",
-        "coords": "-34.5883, -58.3881",
-    },
-    "Estación Retiro Mitre": {
-        "dir": "Av. Dr. Ramos Mejía 1302, Retiro",
-        "alt": "30 m",
-        "acc": "Hall Central / Andenes",
-        "coords": "-34.5903, -58.3742",
-    },
-    "Estación Constitución": {
-        "dir": "Av. Brasil 1152, Constitución",
-        "alt": "30 m",
-        "acc": "Hall Principal / Brasil",
-        "coords": "-34.6281, -58.3814",
-    },
-    "Estación Once": {
-        "dir": "Av. Pueyrredón 1855, Balvanera",
-        "alt": "25 m",
-        "acc": "Pueyrredón / Mitre",
-        "coords": "-34.6095, -58.4078",
-    },
-    "Banco de la Nación Argentina": {
-        "dir": "Rivadavia 325, Monserrat",
-        "alt": "40 m",
-        "acc": "Rivadavia / Mitre",
-        "coords": "-34.6083, -58.3721",
-    },
-    "Bolsa de Comercio de Buenos Aires": {
-        "dir": "25 de Mayo 359, San Nicolás",
-        "alt": "35 m",
-        "acc": "25 de Mayo / Sarmiento",
-        "coords": "-34.6053, -58.3736",
-    },
-    "Club Gimnasia y Esgrima BA": {
-        "dir": "Bmé. Mitre 1149, San Nicolás",
-        "alt": "20 m",
-        "acc": "Acceso Principal",
-        "coords": "-34.6042, -58.3831",
-    },
-    "Círculo Militar (Palacio Paz)": {
-        "dir": "Av. Santa Fe 750, Retiro",
-        "alt": "45 m",
-        "acc": "Santa Fe / Maipú",
-        "coords": "-34.5947, -58.3789",
-    },
-    "Usina del Arte": {
-        "dir": "Agustín Caffarena 1, La Boca",
-        "alt": "25 m",
-        "acc": "Caffarena / Don Pedro",
-        "coords": "-34.6342, -58.3639",
-    },
-    "Museo Nacional de Bellas Artes": {
-        "dir": "Av. Del Libertador 1473, Recoleta",
-        "alt": "20 m",
-        "acc": "Libertador",
-        "coords": "-34.5853, -58.3931",
-    },
-    "Hospital de Clínicas": {
-        "dir": "Av. Córdoba 2351, Recoleta",
-        "alt": "45 m",
-        "acc": "Av. Córdoba / Paraguay",
-        "coords": "-34.5983, -58.3986",
-    },
-    "Legislatura de la Ciudad de Buenos Aires": {
-        "dir": "Peru 160, Monserrat",
-        "alt": "35 m",
-        "acc": "Perú / Julio A. Roca",
-        "coords": "-34.6091, -58.3751",
-    },
-    "Jefatura de Gobierno CABA": {
-        "dir": "Uspallata 3160, Parque Patricios",
-        "alt": "30 m",
-        "acc": "Uspallata / Los Patos",
-        "coords": "-34.6386, -58.4069",
-    },
-    "Torre Madero": {
-        "dir": "Av. Eduardo Madero 1020, Puerto Madero",
-        "alt": "100 m",
-        "acc": "Madero / Bouchard",
-        "coords": "-34.5978, -58.3703",
-    },
-    "YPF Torre": {
-        "dir": "Macacha Güemes 515, Puerto Madero",
-        "alt": "160 m",
-        "acc": "Macacha Güemes / Dique 4",
-        "coords": "-34.6031, -58.3639",
-    },
-}
+# --- INICIALIZACIÓN DE ESTADOS EN MEMORIA ---
+if "edificios_db" not in st.session_state:
+  st.session_state["edificios_db"] = {
+      "Edificio Kavanagh": {
+          "dir": "Florida 1065, Retiro",
+          "alt": "120 m",
+          "acc": "Acceso Principal / Cocheras",
+          "coords": "-34.5922, -58.3753",
+      },
+      "Palacio Barolo": {
+          "dir": "Av. de Mayo 1370, Monserrat",
+          "alt": "100 m",
+          "acc": "Acceso Principal / Carga",
+          "coords": "-34.6095, -58.3860",
+      },
+      "Teatro Colón": {
+          "dir": "Cerrito 628, San Nicolás",
+          "alt": "30 m",
+          "acc": "Libertad / Tucumán",
+          "coords": "-34.6011, -58.3816",
+      },
+      "Congreso de la Nación Argentina": {
+          "dir": "Av. Entre Ríos 50, Balvanera",
+          "alt": "80 m",
+          "acc": "Principal / Protocolar",
+          "coords": "-34.6099, -58.3916",
+      },
+      "Casa Rosada": {
+          "dir": "Balcarce 50, Monserrat",
+          "alt": "24 m",
+          "acc": "Balcarce 24 / Explanada",
+          "coords": "-34.6081, -58.3702",
+      },
+      "Edificio Libertador (Min. de Defensa)": {
+          "dir": "Azopardo 250, Monserrat",
+          "alt": "45 m",
+          "acc": "Azopardo / Paseo Colón",
+          "coords": "-34.6118, -58.3695",
+      },
+      "Edificio Centinela (Gendarmería)": {
+          "dir": "Av. Antártida Argentina 1480, Retiro",
+          "alt": "40 m",
+          "acc": "Acceso General",
+          "coords": "-34.5885, -58.3731",
+      },
+      "Edificio Cóndor (Fuerza Aérea)": {
+          "dir": "Comodoro Py 2055, Retiro",
+          "alt": "35 m",
+          "acc": "Comodoro Py",
+          "coords": "-34.5862, -58.3694",
+      },
+      "Catedral Metropolitana": {
+          "dir": "San Martín 27, San Nicolás",
+          "alt": "25 m",
+          "acc": "Acceso Frontal",
+          "coords": "-34.6075, -58.3737",
+      },
+      "Cabildo de Buenos Aires": {
+          "dir": "Bolívar 65, Monserrat",
+          "alt": "20 m",
+          "acc": "Acceso Principal",
+          "coords": "-34.6084, -58.3732",
+      },
+      "Palacio de Justicia (Tribunales)": {
+          "dir": "Talcahuano 550, San Nicolás",
+          "alt": "50 m",
+          "acc": "Talcahuano / Lavalle",
+          "coords": "-34.6033, -58.3872",
+      },
+      "Facultad de Derecho UBA": {
+          "dir": "Av. Figueroa Alcorta 2263, Recoleta",
+          "alt": "35 m",
+          "acc": "Escinata Principal",
+          "coords": "-34.5833, -58.3897",
+      },
+      "Biblioteca Nacional": {
+          "dir": "Agüero 2502, Recoleta",
+          "alt": "40 m",
+          "acc": "Agüero / Las Heras",
+          "coords": "-34.5847, -58.4011",
+      },
+      "Galerías Pacífico": {
+          "dir": "Av. Florida 737, San Nicolás",
+          "alt": "25 m",
+          "acc": "Florida / Viamonte",
+          "coords": "-34.5997, -58.3744",
+      },
+      "CCK (Centro Cultural Kirchner)": {
+          "dir": "Sarmiento 151, Monserrat",
+          "alt": "40 m",
+          "acc": "Sarmiento / Alem",
+          "coords": "-34.6044, -58.3694",
+      },
+      "Hotel Alvear": {
+          "dir": "Av. Alvear 1891, Recoleta",
+          "alt": "50 m",
+          "acc": "Av. Alvear / Ayacucho",
+          "coords": "-34.5883, -58.3881",
+      },
+      "Estación Retiro Mitre": {
+          "dir": "Av. Dr. Ramos Mejía 1302, Retiro",
+          "alt": "30 m",
+          "acc": "Hall Central / Andenes",
+          "coords": "-34.5903, -58.3742",
+      },
+      "Estación Constitución": {
+          "dir": "Av. Brasil 1152, Constitución",
+          "alt": "30 m",
+          "acc": "Hall Principal / Brasil",
+          "coords": "-34.6281, -58.3814",
+      },
+      "Estación Once": {
+          "dir": "Av. Pueyrredón 1855, Balvanera",
+          "alt": "25 m",
+          "acc": "Pueyrredón / Mitre",
+          "coords": "-34.6095, -58.4078",
+      },
+      "Banco de la Nación Argentina": {
+          "dir": "Rivadavia 325, Monserrat",
+          "alt": "40 m",
+          "acc": "Rivadavia / Mitre",
+          "coords": "-34.6083, -58.3721",
+      },
+      "Bolsa de Comercio de Buenos Aires": {
+          "dir": "25 de Mayo 359, San Nicolás",
+          "alt": "35 m",
+          "acc": "25 de Mayo / Sarmiento",
+          "coords": "-34.6053, -58.3736",
+      },
+      "Club Gimnasia y Esgrima BA": {
+          "dir": "Bmé. Mitre 1149, San Nicolás",
+          "alt": "20 m",
+          "acc": "Acceso Principal",
+          "coords": "-34.6042, -58.3831",
+      },
+      "Círculo Militar (Palacio Paz)": {
+          "dir": "Av. Santa Fe 750, Retiro",
+          "alt": "45 m",
+          "acc": "Santa Fe / Maipú",
+          "coords": "-34.5947, -58.3789",
+      },
+      "Usina del Arte": {
+          "dir": "Agustín Caffarena 1, La Boca",
+          "alt": "25 m",
+          "acc": "Caffarena / Don Pedro",
+          "coords": "-34.6342, -58.3639",
+      },
+      "Museo Nacional de Bellas Artes": {
+          "dir": "Av. Del Libertador 1473, Recoleta",
+          "alt": "20 m",
+          "acc": "Libertador",
+          "coords": "-34.5853, -58.3931",
+      },
+      "Hospital de Clínicas": {
+          "dir": "Av. Córdoba 2351, Recoleta",
+          "alt": "45 m",
+          "acc": "Av. Córdoba / Paraguay",
+          "coords": "-34.5983, -58.3986",
+      },
+      "Legislatura de la Ciudad de Buenos Aires": {
+          "dir": "Peru 160, Monserrat",
+          "alt": "35 m",
+          "acc": "Perú / Julio A. Roca",
+          "coords": "-34.6091, -58.3751",
+      },
+      "Jefatura de Gobierno CABA": {
+          "dir": "Uspallata 3160, Parque Patricios",
+          "alt": "30 m",
+          "acc": "Uspallata / Los Patos",
+          "coords": "-34.6386, -58.4069",
+      },
+      "Torre Madero": {
+          "dir": "Av. Eduardo Madero 1020, Puerto Madero",
+          "alt": "100 m",
+          "acc": "Madero / Bouchard",
+          "coords": "-34.5978, -58.3703",
+      },
+      "YPF Torre": {
+          "dir": "Macacha Güemes 515, Puerto Madero",
+          "alt": "160 m",
+          "acc": "Macacha Güemes / Dique 4",
+          "coords": "-34.6031, -58.3639",
+      },
+  }
+
+if "usuarios_db" not in st.session_state:
+  st.session_state["usuarios_db"] = [
+      "admin_principal",
+      "operador_turno_1",
+      "supervisor_general",
+  ]
+
+
+# --- FUNCIÓN DE CLIMA ---
+def obtener_clima():
+  try:
+    r = requests.get(
+        "https://api.open-meteo.com/v1/forecast?latitude=-34.61&longitude=-58.37&current=temperature_2m",
+        timeout=3,
+    )
+    temp = r.json()["current"]["temperature_2m"]
+    return f"{temp}°C"
+  except:
+    return "No disponible"
+
 
 # --- NAVEGACIÓN LATERAL (SOLAPAS) ---
 with st.sidebar:
-  st.title("🛡️ SPPRO v3.0")
+  st.title("🛡️ SPPRO v3.5")
   st.markdown("Seguridad Patrimonial CABA")
   st.divider()
   menu = st.radio(
@@ -210,36 +232,49 @@ with st.sidebar:
   st.divider()
   st.caption("Estado: 🟢 En Línea")
 
+
 # ==========================================
 # SOLAPA 1: VERIFICACIÓN DE EDIFICIOS
 # ==========================================
 if menu == "1️⃣ Verificación de Edificios":
   st.header("🏢 Control y Verificación de Edificios")
+  st.metric("🌡️ Clima Actual en CABA", obtener_clima())
+  st.divider()
 
-  # Clima en tiempo real
-  try:
-    r = requests.get(
-        "https://api.open-meteo.com/v1/forecast?latitude=-34.61&longitude=-58.37&current=temperature_2m",
-        timeout=3,
-    )
-    temp = r.json()["current"]["temperature_2m"]
-    st.metric("🌡️ Clima Actual en CABA", f"{temp}°C")
-  except:
-    st.metric("🌡️ Clima Actual en CABA", "No disponible")
+  # Sección para agregar nuevos edificios
+  with st.expander("➕ Agregar un Edificio Nuevo a la Base"):
+    with st.form("nuevo_edificio_form"):
+      n_nombre = st.text_input("Nombre del Edificio / Sitio")
+      n_dir = st.text_input("Dirección Exacta")
+      n_alt = st.text_input("Altura Catastral (Ej. 45 m)")
+      n_acc = st.text_input("Entradas y Salidas (Ej. Principal / Carga)")
+      n_coords = st.text_input("Coordenadas GPS (Ej. -34.60, -58.38)")
+      btn_guardar_nuevo = st.form_submit_button("Guardar Nuevo Edificio")
+
+      if btn_guardar_nuevo and n_nombre:
+        st.session_state["edificio_s_db"][n_nombre] = {
+            "dir": n_dir,
+            "alt": n_alt,
+            "acc": n_acc,
+            "coords": n_coords,
+        }
+        st.success(f"Edificio '{n_nombre}' agregado correctamente.")
 
   st.divider()
 
-  # Selección de edificio
+  # Selector de edificios
+  lista_nombres = list(st.session_state["edificios_db"].keys())
   edificio_elegido = st.selectbox(
-      "Seleccione un Edificio Emblemático de CABA", list(lista_edificios.keys())
+      "Seleccionar Edificio / Sitio", lista_nombres
   )
 
   if st.button("🔍 VERIFICAR EDIFICIO", type="primary"):
-    info = lista_edificios[edificio_elegido]
+    info = st.session_state["edificios_db"][edificio_elegido]
     st.session_state["activo_nombre"] = edificio_elegido
     st.session_state["activo_datos"] = info
+    st.session_state["activo_clima"] = obtener_clima()
 
-  # Mostrar ficha técnica si se presionó verificar
+  # Mostrar ficha técnica activa
   if "activo_nombre" in st.session_state:
     nom = st.session_state["activo_nombre"]
     dat = st.session_state["activo_datos"]
@@ -257,29 +292,26 @@ if menu == "1️⃣ Verificación de Edificios":
     st.markdown("---")
     st.subheader("📷 Carga de Fotografías / Evidencia")
     st.file_uploader(
-        (
-            "Adjuntar registros fotográficos para futuros eventos o bitácoras"
-            " patrimoniales"
-        ),
+        "Adjuntar registros fotográficos para futuros eventos",
         type=["png", "jpg", "jpeg"],
         accept_multiple_files=True,
     )
 
     st.markdown("---")
-    st.subheader("🛡️ Puntos Seguros Cercanos (CABA)")
+    st.subheader("🛡️ Puntos Seguros Cercanos (CABA - Direcciones Reales)")
     st.info(
         "🏥 **Hospital General de Agudos J. A. Fernández** — Cerviño 3356,"
         " Recoleta"
     )
     st.info("🚨 **Comisaría Vecinal 1A** — Suipacha 1156, Retiro")
     st.info(
-        "🏛️ **Departamento Central de Policía (PFA)** — Av. Cnel. Díaz 1850,"
-        " Palermo"
+        "🏛️ **Departamento Central de Policía (PFA)** — Moreno 1550, Monserrat"
     )
     st.info(
         "⭐ **Edificio Libertador (Min. de Defensa / FFAA)** — Azopardo 250,"
         " Monserrat"
     )
+
 
 # ==========================================
 # SOLAPA 2: GENERACIÓN DE PDF
@@ -287,120 +319,178 @@ if menu == "1️⃣ Verificación de Edificios":
 elif menu == "2️⃣ Generación de PDF":
   st.header("📄 Generador de Reportes PDF")
   st.markdown(
-      "Exporte la ficha técnica y los puntos de control en un formato PDF"
-      " formal, limpio y profesional."
+      "Diseño profesional institucional con tonos azules, clima y bloque de"
+      " firma digital."
   )
 
   if "activo_nombre" in st.session_state:
     nom = st.session_state["activo_nombre"]
     dat = st.session_state["activo_datos"]
+    clima_actual = st.session_state.get("activo_clima", "No registrado")
 
-    st.info(f"Edificio seleccionado para exportar: **{nom}**")
+    st.info(f"Edificio listo para exportar: **{nom}**")
 
-    if st.button("📥 Generar Archivo PDF Institucional", type="primary"):
+    # Campo para la firma digital
+    firma_digital = st.text_input(
+        "✍️ Ingrese el Nombre / Cargo para la Firma Digital",
+        placeholder="Ej: Of. Juan Pérez - Supervisor de Seguridad Patrimonial",
+    )
+
+    if st.button("📥 Generar PDF Institucional Profesional", type="primary"):
       pdf = FPDF()
       pdf.add_page()
 
-      # Encabezado
-      pdf.set_font("Arial", "B", 16)
-      pdf.set_text_color(20, 40, 80)
+      # Encabezado con diseño azul corporativo
+      pdf.set_fill_color(24, 43, 73)  # Azul Oscuro Institucional
+      pdf.rect(0, 0, 210, 25, "F")
+      pdf.set_font("Arial", "B", 14)
+      pdf.set_text_color(255, 255, 255)
+      pdf.set_xy(10, 8)
       pdf.cell(
-          200,
+          190,
           10,
-          txt="SPPRO - REPORTE DE VERIFICACIÓN PATRIMONIAL",
+          txt="SPPRO - VERIFICACIÓN DEL LUGAR DEL EVENTO",
           ln=True,
           align="C",
       )
 
-      pdf.set_font("Arial", "", 10)
+      pdf.ln(15)
+      pdf.set_font("Arial", "", 9)
       pdf.set_text_color(100, 100, 100)
       pdf.cell(
           200,
           6,
           txt=(
-              "Fecha de Emisión: "
+              "Fecha y Hora de Emisión: "
               + datetime.now().strftime("%d/%m/%Y %H:%M:%S")
           ),
           ln=True,
-          align="C",
+          align="R",
       )
-      pdf.ln(10)
+      pdf.cell(
+          200,
+          6,
+          txt=f"Condiciones Climáticas al Momento: {clima_actual}",
+          ln=True,
+          align="R",
+      )
+      pdf.ln(5)
 
-      # Datos
-      pdf.set_font("Arial", "B", 12)
-      pdf.set_text_color(0, 0, 0)
-      pdf.cell(200, 8, txt=f"Ficha Técnica: {nom}", ln=True)
+      # Sección: Datos del Edificio
+      pdf.set_font("Arial", "B", 11)
+      pdf.set_text_color(24, 43, 73)
+      pdf.cell(200, 8, txt="1. INFORMACIÓN TÉCNICA DEL OBJETIVO", ln=True)
 
-      pdf.set_font("Arial", "", 11)
-      pdf.set_fill_color(240, 240, 240)
-      pdf.cell(
-          200, 8, txt=f"  Dirección: {dat['dir']}", ln=True, fill=True
-      )
-      pdf.cell(
-          200, 8, txt=f"  Altura Catastral: {dat['alt']}", ln=True, fill=True
-      )
-      pdf.cell(
-          200, 8, txt=f"  Entradas y Salidas: {dat['acc']}", ln=True, fill=True
-      )
-      pdf.cell(
-          200, 8, txt=f"  Coordenadas GPS: {dat['coords']}", ln=True, fill=True
-      )
-      pdf.ln(10)
-
-      # Puntos Seguros
-      pdf.set_font("Arial", "B", 12)
-      pdf.cell(200, 8, txt="Puntos Seguros de Referencia (CABA):", ln=True)
       pdf.set_font("Arial", "", 10)
+      pdf.set_text_color(0, 0, 0)
+      pdf.set_fill_color(245, 247, 250)
+
+      pdf.cell(200, 7, txt=f"  - Objetivo / Edificio: {nom}", ln=True, fill=True)
+      pdf.cell(
+          200, 7, txt=f"  - Dirección Exacta: {dat['dir']}", ln=True, fill=True
+      )
+      pdf.cell(
+          200, 7, txt=f"  - Altura Catastral: {dat['alt']}", ln=True, fill=True
+      )
+      pdf.cell(
+          200,
+          7,
+          txt=f"  - Accesos (Entradas/Salidas): {dat['acc']}",
+          ln=True,
+          fill=True,
+      )
+      pdf.cell(
+          200,
+          7,
+          txt=f"  - Coordenadas GPS: {dat['coords']}",
+          ln=True,
+          fill=True,
+      )
+      pdf.ln(5)
+
+      # Sección: Puntos Seguros
+      pdf.set_font("Arial", "B", 11)
+      pdf.set_text_color(24, 43, 73)
+      pdf.cell(200, 8, txt="2. PUNTOS SEGUROS DE REFERENCIA (CABA)", ln=True)
+
+      pdf.set_font("Arial", "", 10)
+      pdf.set_text_color(0, 0, 0)
       pdf.cell(
           200,
           6,
           txt=(
-              "  - Hospital General de Agudos J. A. Fernández (Cerviño 3356,"
-              " Recoleta)"
+              "  * Hospital General de Agudos J. A. Fernández — Cerviño 3356,"
+              " Recoleta"
           ),
           ln=True,
       )
       pdf.cell(
           200,
           6,
-          txt="  - Comisaría Vecinal 1A (Suipacha 1156, Retiro)",
+          txt="  * Comisaría Vecinal 1A — Suipacha 1156, Retiro",
+          ln=True,
+      )
+      pdf.cell(
+          200,
+          6,
+          txt="  * Departamento Central de Policía (PFA) — Moreno 1550, Monserrat",
           ln=True,
       )
       pdf.cell(
           200,
           6,
           txt=(
-              "  - Departamento Central de Policía - PFA (Av. Cnel. Díaz 1850,"
-              " Palermo)"
+              "  * Edificio Libertador (Min. de Defensa / FFAA) — Azopardo 250,"
+              " Monserrat"
           ),
           ln=True,
       )
+      pdf.ln(15)
+
+      # Bloque de Firma Digital
+      pdf.set_font("Arial", "B", 10)
+      pdf.set_text_color(24, 43, 73)
+      pdf.cell(200, 6, txt="3. VALIDACIÓN Y FIRMA DIGITAL", ln=True)
+      pdf.ln(10)
+
+      pdf.set_font("Arial", "", 10)
+      pdf.set_text_color(50, 50, 50)
+      firma_texto = (
+          firma_digital
+          if firma_digital
+          else "Firma Autorizada - Control Operativo SPPRO"
+      )
+      pdf.cell(
+          200, 6, txt="________________________________________________", ln=True
+      )
+      pdf.cell(200, 6, txt=f"Certificado Digital: {firma_texto}", ln=True)
       pdf.cell(
           200,
           6,
           txt=(
-              "  - Edificio Libertador - Min. de Defensa / FFAA (Azopardo 250,"
-              " Monserrat)"
+              "Sello de Verificación Automatizada SPPRO - Seguridad"
+              " Patrimonial"
           ),
           ln=True,
       )
 
-      archivo_salida = "reporte_edificio.pdf"
-      pdf.output(archivo_salida)
+      archivo_pdf = "sppro_verificacion_evento.pdf"
+      pdf.output(archivo_pdf)
 
-      with open(archivo_salida, "rb") as f:
+      with open(archivo_pdf, "rb") as f:
         st.download_button(
-            label="💾 Descargar PDF en tu Dispositivo",
+            label="💾 Descargar PDF Profesional Ahora",
             data=f,
-            file_name=archivo_salida,
+            file_name=archivo_pdf,
             mime="application/pdf",
         )
-      st.success("¡PDF generado correctamente!")
+      st.success("¡PDF generado con éxito bajo estándares corporativos!")
   else:
     st.warning(
-        "⚠️ Atención: Primero debe seleccionar y verificar un edificio en la"
-        " solapa **1️⃣ Verificación de Edificios**."
+        "⚠️ Atención: Primero debe ir a la solapa **1️⃣ Verificación de Edificios**"
+        " y verificar un objetivo."
     )
+
 
 # ==========================================
 # SOLAPA 3: ADMINISTRADOR DE USUARIOS
@@ -408,18 +498,34 @@ elif menu == "2️⃣ Generación de PDF":
 elif menu == "3️⃣ Administrador de Usuarios":
   st.header("👤 Panel de Administración de Usuarios")
   st.markdown(
-      "Control de accesos del personal por razones de seguridad operativa."
+      "Agregue o elimine operadores con acceso autorizado al sistema."
   )
 
-  st.text("👤 admin_principal — 🟢 Habilitado")
-  st.text("👤 operador_turno_1 — 🟢 Habilitado")
+  # Listar usuarios actuales con botón de borrado
+  st.subheader("Operadores Habilitados")
+  usuario_a_borrar = None
+
+  for user in st.session_state["usuarios_db"]:
+    col1, col2 = st.columns([3, 1])
+    with col1:
+      st.text(f"👤 {user}")
+    with col2:
+      if st.button("🗑️ Borrar", key=f"del_{user}"):
+        st.session_state["usuarios_db"].remove(user)
+        st.rerun()
 
   st.divider()
+
+  # Agregar nuevo usuario
   st.subheader("Registrar Nuevo Operador")
-  with st.form("nuevo_usuario"):
-    nuevo_nombre = st.text_input("Nombre de Usuario / Legajo")
-    crear_btn = st.form_submit_button("Dar de Alta")
-    if crear_btn and nuevo_nombre:
-      st.success(
-          f"Usuario '{nuevo_nombre}' registrado temporalmente con éxito."
-)
+  with st.form("agregar_usuario_form"):
+    nuevo_usr = st.text_input("Nombre de Usuario / Legajo")
+    btn_agregar = st.form_submit_button("Dar de Alta Usuario")
+
+    if btn_agregar and nuevo_usr:
+      if nuevo_usr not in st.session_state["usuarios_db"]:
+        st.session_state["usuarios_db"].append(nuevo_usr)
+        st.success(f"Usuario '{nuevo_usr}' agregado con éxito.")
+        st.rerun()
+      else:
+        st.error("El usuario ya existe en el sistema.")
