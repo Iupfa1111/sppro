@@ -1,5 +1,6 @@
 # datos.py
 
+# --- BASE DE DATOS DE EDIFICIOS ---
 edificios_db = {
     "Edificio Kavanagh": {"dir": "Florida 1065, Retiro", "alt": "120 m", "acc": "Principal / Cocheras", "coords": "-34.5922, -58.3753"},
     "Palacio Barolo": {"dir": "Av. de Mayo 1370, Monserrat", "alt": "100 m", "acc": "Principal / Carga", "coords": "-34.6095, -58.3860"},
@@ -13,21 +14,42 @@ edificios_db = {
     "Estación Constitución": {"dir": "Av. Brasil 1152", "alt": "30 m", "acc": "Hall Principal", "coords": "-34.6281, -58.3814"},
 }
 
+# --- BASE DE DATOS DE PUNTOS SEGUROS (HOSPITALES + COMISARÍAS + PFA) ---
 puntos_seguros = {
+    # Hospitales
+    "Hosp. Alvarez": (-34.6190, -58.4610),
     "Hosp. Argerich": (-34.6366, -58.3639),
-    "Hosp. Ramos Mejía": (-34.6152, -58.4079),
+    "Hosp. Durand": (-34.6111, -58.4347),
     "Hosp. Fernández": (-34.5833, -58.4069),
-    "Hosp. Garrahan": (-34.6328, -58.3986),
+    "Hosp. Grierson": (-34.6852, -58.4612),
+    "Hosp. Penna": (-34.6432, -58.3912),
+    "Hosp. Piñero": (-34.6432, -58.4412),
+    "Hosp. Pirovano": (-34.5583, -58.4839),
+    "Hosp. Ramos Mejía": (-34.6152, -58.4079),
+    "Hosp. Rivadavia": (-34.5852, -58.3976),
+    "Hosp. Santojanni": (-34.6531, -58.5134),
+    "Hosp. Tornú": (-34.5856, -58.4812),
+    "Hosp. Vélez Sarsfield": (-34.6291, -58.5089),
+    "Hosp. Zubizarreta": (-34.5954, -58.5176),
+    # Comisarías Comunales
     "Comisaría Comunal 1": (-34.5842, -58.3695),
     "Comisaría Comunal 2": (-34.5911, -58.3923),
+    "Comisaría Comunal 3": (-34.6149, -58.3936),
     "Comisaría Comunal 4": (-34.6419, -58.4028),
+    "Comisaría Comunal 5": (-34.6044, -58.4156),
+    "Comisaría Comunal 6": (-34.6203, -58.4532),
+    "Comisaría Comunal 7": (-34.6310, -58.4583),
+    "Comisaría Comunal 8": (-34.6712, -58.4551),
+    "Comisaría Comunal 9": (-34.6451, -58.5252),
+    "Comisaría Comunal 10": (-34.6391, -58.4940),
+    "Comisaría Comunal 11": (-34.6110, -58.4729),
+    "Comisaría Comunal 12": (-34.5509, -58.4910),
+    "Comisaría Comunal 13": (-34.5552, -58.4591),
     "Comisaría Comunal 14": (-34.5812, -58.4136),
+    "Comisaría Comunal 15": (-34.5905, -58.4510),
+    # PFA
     "PFA Depto. Central": (-34.6146, -58.3848),
-    "PFA Supt. Investigaciones": (-34.6135, -58.3912),
+    "PFA Inv. Federales": (-34.6135, -58.3912),
     "PFA Delitos Tecnológicos": (-34.5778, -58.4065),
-    "PFA División FF.CC. Mitre": (-34.5903, -58.3742),
-    "PFA División FF.CC. Sarmiento": (-34.6095, -58.4078),
-    "PFA División FF.CC. Roca": (-34.6281, -58.3814),
-    "PFA Terminal Ómnibus": (-34.5885, -58.3725),
-    "PFA Supt. Bomberos": (-34.6045, -58.3810),
+    "PFA Bomberos Central": (-34.6045, -58.3810),
 }
