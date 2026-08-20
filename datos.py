@@ -12,10 +12,10 @@ edificios_db = {
     "Catedral Metropolitana": {"dir": "San Martín 27", "coords": "-34.6075, -58.3737"},
     "Congreso": {"dir": "Av. Entre Ríos 50", "coords": "-34.6099, -58.3916"},
     "Constitución": {"dir": "Av. Brasil 1152", "coords": "-34.6281, -58.3814"},
-    "Edificio Centinela": {"dir": "Antártida Arg 1480", "coords": "-34.5885, -58.3731"},
-    "Edificio Cóndor": {"dir": "Comodoro Py 2055", "coords": "-34.5862, -58.3694"},
+    "Edificio Centinela (Gendarmería)": {"dir": "Antártida Arg 1480", "coords": "-34.5885, -58.3731"},
+    "Edificio Cóndor (Fuerza Aérea)": {"dir": "Comodoro Py 2055", "coords": "-34.5862, -58.3694"},
     "Edificio Kavanagh": {"dir": "Florida 1065", "coords": "-34.5922, -58.3753"},
-    "Edificio Libertador": {"dir": "Azopardo 250", "coords": "-34.6118, -58.3695"},
+    "Edificio Libertador (Ejército)": {"dir": "Azopardo 250", "coords": "-34.6118, -58.3695"},
     "Facultad Derecho UBA": {"dir": "Figueroa Alcorta 2263", "coords": "-34.5833, -58.3897"},
     "Galerías Pacífico": {"dir": "Florida 737", "coords": "-34.5997, -58.3744"},
     "Gimnasia y Esgrima": {"dir": "Bmé. Mitre 1149", "coords": "-34.6042, -58.3831"},
@@ -34,7 +34,7 @@ edificios_db = {
     "YPF Torre": {"dir": "Macacha Güemes 515", "coords": "-34.6031, -58.3639"}
 }
 
-# Listado completo y oficial de Comisarías Comunales y Vecinales de CABA (Policía de la Ciudad)
+# Listado completo de TODAS las Comisarías Comunales y Vecinales de CABA
 comisarias_db = {
     "Comisaría Comunal 1": (-34.5842, -58.3695),
     "Comisaría Vecinal 1-A": (-34.5842, -58.3695),
@@ -48,6 +48,7 @@ comisarias_db = {
     "Comisaría Comunal 3": (-34.6044, -58.3850),
     "Comisaría Vecinal 3-A": (-34.6020, -58.3900),
     "Comisaría Vecinal 3-B": (-34.6120, -58.4050),
+    "Comisaría Vecinal 3-C": (-34.6149, -58.3936),
     "Comisaría Comunal 4": (-34.6419, -58.4028),
     "Comisaría Vecinal 4-A": (-34.6419, -58.4028),
     "Comisaría Vecinal 4-B": (-34.6380, -58.3680),
@@ -96,7 +97,7 @@ comisarias_db = {
     "Comisaría Vecinal 15-C": (-34.5950, -58.4650)
 }
 
-# Listado completo y oficial de Hospitales Públicos de la CABA (Generales y Pediátricos)
+# Listado completo de TODOS los Hospitales Públicos y Especializados de CABA
 hospitales_db = {
     "Hospital Álvarez": (-34.6190, -58.4610),
     "Hospital Argerich": (-34.6366, -58.3639),
@@ -104,24 +105,29 @@ hospitales_db = {
     "Hospital Durand": (-34.6111, -58.4347),
     "Hospital Elizalde (Casa Cuna)": (-34.6320, -58.3780),
     "Hospital Fernández": (-34.5833, -58.4069),
-    "Hospital Fiorito (Adyacencia)": (-34.6650, -58.3710),
     "Hospital Garrahan": (-34.6295, -58.3901),
     "Hospital Grierson": (-34.6852, -58.4612),
     "Hospital Gutiérrez (Niños)": (-34.5950, -58.4120),
-    "Hospital Moyano": (-34.6390, -58.3810),
-    "Hospital Muñiz": (-34.6350, -58.3920),
     "Hospital Penna": (-34.6432, -58.3912),
     "Hospital Piñero": (-34.6432, -58.4412),
     "Hospital Pirovano": (-34.5583, -58.4839),
     "Hospital Ramos Mejía": (-34.6152, -58.4079),
     "Hospital Rivadavia": (-34.5852, -58.3976),
-    "Hospital Rocca": (-34.6220, -58.4810),
     "Hospital Santojanni": (-34.6531, -58.5134),
     "Hospital Tornú": (-34.5856, -58.4812),
+    "Hospital Borda": (-34.6391, -58.3840),
+    "Hospital Moyano": (-34.6390, -58.3810),
+    "Hospital Alvear": (-34.5860, -58.4800),
+    "Hospital Muñiz": (-34.6350, -58.3920),
+    "Hospital Ferrer": (-34.6220, -58.3790),
+    "Hospital Udaondo": (-34.6310, -58.3820),
+    "Hospital Santa Lucía": (-34.6190, -58.3850),
+    "Hospital Lagleyze": (-34.6080, -58.4610),
+    "Hospital Curie": (-34.6050, -58.4120),
+    "Hospital Quemados": (-34.6180, -58.4350),
+    "Hospital Rocca": (-34.6220, -58.4810),
     "Hospital Tobar García": (-34.6380, -58.3850),
+    "Hospital Sardá": (-34.6340, -58.3880),
     "Hospital Vélez Sarsfield": (-34.6291, -58.5089),
     "Hospital Zubizarreta": (-34.5954, -58.5176)
 }
-
-# Consolidado general de puntos de seguridad y respuesta médica
-puntos_seguros = {**comisarias_db, **hospitales_db}
