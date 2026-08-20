@@ -1,30 +1,32 @@
-import datetime
+import os
 import sqlite3
+import datetime
 import pandas as pd
 import streamlit as st
 from fpdf import FPDF
+from PIL import Image
+import clima
 
+# --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="SPPRO by Angel Ibañez", layout="wide")
 
-# ==========================================
-# FUNCIÓN DE LIMPIEZA PARA FPDF (NUEVO)
-# ==========================================
-def limpiar_texto(texto):
-    """
-    FPDF clásico no soporta emojis ni viñetas especiales (•). 
-    Esta función limpia el texto para que el PDF no crashee.
-    """
-    texto = str(texto).replace("•", "-") # Cambiamos viñetas por guiones
-    # Ignora emojis y caracteres fuera del mapa latin-1
-    return texto.encode('latin-1', 'ignore').decode('latin-1')
+# --- ESTILOS VISUALES (Azul Institucional) ---
+st.markdown("""
+    <style>
+        .stButton>button { background-color: #003366; color: white; border-radius: 4px; }
+        .stButton>button:hover { background-color: #002244; color: white; }
+        h1, h2, h3 { color: #003366; }
+    </style>
+""", unsafe_allow_html=True)
 
 # ==========================================
-# 1. BASE DE DATOS ROBUSTA Y AUTOCORRECTIVA
+# BASE DE DATOS Y AUTOCORRECCIÓN
 # ==========================================
 def init_db():
     conn = sqlite3.connect("sppro.db")
     cursor = conn.cursor()
     
+    # Tabla usuarios
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS usuarios (
             username TEXT PRIMARY KEY,
@@ -34,40 +36,70 @@ def init_db():
         )
     """)
     
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='edificios'")
-    tabla_existe = cursor.fetchone()
-    
-    if not tabla_existe:
-        cursor.execute("""
-            CREATE TABLE edificios (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nombre TEXT NOT NULL,
-                direccion TEXT NOT NULL,
-                accesos TEXT,
-                imagen_path TEXT,
-                privado INTEGER NOT NULL DEFAULT 0
-            )
-        """)
-    else:
-        cursor.execute("PRAGMA table_info(edificios)")
-        columnas = [info[1] for info in cursor.fetchall()]
-        if "privado" not in columnas:
-            try:
-                cursor.execute("ALTER TABLE edificios ADD COLUMN privado INTEGER NOT NULL DEFAULT 0")
-            except:
-                pass
-                
+    # Tabla edificios (Objetivos)
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS eventos_historial (
+        CREATE TABLE IF NOT EXISTS edificios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            fecha_hora TEXT,
-            edificio TEXT,
-            clima TEXT,
-            altura_snm TEXT,
+            nombre TEXT NOT NULL,
+            tipo TEXT,
+            direccion TEXT NOT NULL,
+            altura TEXT,
+            latitud REAL,
+            longitud REAL,
+            pisos INTEGER,
+            subsuelos INTEGER,
+            horario TEXT,
             observaciones TEXT
         )
     """)
-    
+
+    # Tabla fotografías asociadas a edificios
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS fotografias (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            edificio_id INTEGER,
+            archivo TEXT,
+            descripcion TEXT,
+            usuario TEXT,
+            fecha TEXT,
+            FOREIGN KEY(edificio_id) REFERENCES edificios(id)
+        )
+    """)
+
+    # Tabla cámaras observadas
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS camaras (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            edificio_id INTEGER,
+            ubicacion TEXT,
+            observacion TEXT,
+            FOREIGN KEY(edificio_id) REFERENCES edificios(id)
+        )
+    """)
+
+    # Tabla puntos de apoyo
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS puntos_apoyo (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT,
+            tipo TEXT,
+            direccion TEXT,
+            observaciones TEXT
+        )
+    """)
+
+    # Tabla checklist
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS checklist (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            edificio_id INTEGER,
+            item TEXT,
+            verificado INTEGER,
+            FOREIGN KEY(edificio_id) REFERENCES edificios(id)
+        )
+    """)
+
+    # Crear usuario administrador por defecto si no existe
     cursor.execute("SELECT COUNT(*) FROM usuarios")
     if cursor.fetchone()[0] == 0:
         cursor.execute("INSERT INTO usuarios VALUES (?, ?, ?, ?)", ("admin", "admin123", 1, "Administrador"))
@@ -79,154 +111,42 @@ def init_db():
 init_db()
 
 # ==========================================
-# 2. DICCIONARIO INTELIGENTE: LUGARES, DATOS AMBIENTALES Y PUNTOS SEGUROS
+# FUNCIONES DE UTILIDAD (PDF y Texto)
 # ==========================================
-BASE_CONOCIMIENTO = {
-    "Congreso de la Nación": {
-        "direccion": "Av. Rivadavia 1864, CABA",
-        "clima": "☀️ Despejado / 21°C / Viento SE a 12 km/h",
-        "altura": "25 msnm",
-        "hospitales": ["Hospital General de Agudos B. Rivadavia (Av. Las Heras 2670)", "Hospital Ramos Mejía (Urquiza 609)"],
-        "comisarias": ["Comisaría Vecinal 3B (Pasco 473)", "Comisaría Vecinal 1B (Av. de Mayo 1269)"],
-        "pfa": ["Departamento Central de la Policía Federal Argentina (Moreno 1550)"],
-        "ffaa": ["Estado Mayor Conjunto de las FFAA (Paseo Colón 1401)", "Edificio Libertador (Azopardo 250)"]
-    },
-    "Hotel Hilton": {
-        "direccion": "Macacha Güemes 351, Puerto Madero, CABA",
-        "clima": "⛅ Parcialmente nublado / 22°C / Viento Este a 15 km/h",
-        "altura": "8 msnm",
-        "hospitales": ["Hospital General de Agudos Dr. C. Argerich (Pi y Margall 750)"],
-        "comisarias": ["Comisaría Vecinal 1E (Av. Belgrano 340)"],
-        "pfa": ["Policía Científica PFA (Azopardo 670)"],
-        "ffaa": ["Estado Mayor General de la Armada (Comodoro Py 2055)"]
-    },
-    "Casa Rosada": {
-        "direccion": "Balcarce 50, CABA",
-        "clima": "☀️ Despejado / 21°C / Viento SE a 12 km/h",
-        "altura": "10 msnm",
-        "hospitales": ["Hospital Argerich (Pi y Margall 750)", "Hospital Santa Lucía (Av. San Juan 2021)"],
-        "comisarias": ["Comisaría Vecinal 1D (Av. Belgrano 340)"],
-        "pfa": ["Departamento Central de la Policía Federal Argentina (Moreno 1550)", "Policía Científica PFA (Azopardo 670)"],
-        "ffaa": ["Edificio Libertador - Ministerio de Defensa (Azopardo 250)"]
-    },
-    "Teatro Colón": {
-        "direccion": "Cerrito 628, CABA",
-        "clima": "☀️ Despejado / 21°C / Viento Este a 14 km/h",
-        "altura": "22 msnm",
-        "hospitales": ["Hospital General de Agudos B. Rivadavia (Av. Las Heras 2670)"],
-        "comisarias": ["Comisaría Vecinal 1A (Suipacha 1156)"],
-        "pfa": ["Departamento Central de la Policía Federal Argentina (Moreno 1550)"],
-        "ffaa": ["Estado Mayor General del Ejército (Azopardo 250)"]
-    },
-    "Palacio Barolo": {
-        "direccion": "Av. de Mayo 1370, CABA",
-        "clima": "☀️ Despejado / 21°C / Viento SE a 12 km/h",
-        "altura": "24 msnm",
-        "hospitales": ["Hospital Ramos Mejía (Urquiza 609)", "Hospital Santa Lucía (Av. San Juan 2021)"],
-        "comisarias": ["Comisaría Vecinal 1B (Av. de Mayo 1269)"],
-        "pfa": ["Departamento Central de la Policía Federal Argentina (Moreno 1550)"],
-        "ffaa": ["Círculo Militar (Plaza San Martín)"]
-    },
-    "Hotel Alvear": {
-        "direccion": "Av. Alvear 1891, Recoleta, CABA",
-        "clima": "⛅ Parcialmente nublado / 20°C / Viento Este a 10 km/h",
-        "altura": "26 msnm",
-        "hospitales": ["Hospital Fernán Pérez de Quirno / Fernández (Cerviño 3356)"],
-        "comisarias": ["Comisaría Vecinal 2A (Av. Las Heras 1861)"],
-        "pfa": ["Cuerpo policía montada de la PFA (Cavia 3302)"],
-        "ffaa": ["Guarnición Militar Buenos Aires (Palermo)"]
-    },
-    "Sheraton Buenos Aires Hotel": {
-        "direccion": "San Martín 1225, Retiro, CABA",
-        "clima": "☀️ Despejado / 21°C / Viento Este a 15 km/h",
-        "altura": "12 msnm",
-        "hospitales": ["Hospital Fernández (Cerviño 3356)"],
-        "comisarias": ["Comisaría Vecinal 1A (Suipacha 1156)"],
-        "pfa": ["Cuerpo policía montada de la PFA (Cavia 3302)"],
-        "ffaa": ["Edificio Cóndor - Fuerza Aérea Argentina (Comodoro Py 2550)"]
-    },
-    "Luna Park": {
-        "direccion": "Av. Madero 420, CABA",
-        "clima": "☀️ Despejado / 21°C / Viento Este a 15 km/h",
-        "altura": "11 msnm",
-        "hospitales": ["Hospital Argerich (Pi y Margall 750)"],
-        "comisarias": ["Comisaría Vecinal 1A (Suipacha 1156)"],
-        "pfa": ["Policía Científica PFA (Azopardo 670)"],
-        "ffaa": ["Estado Mayor General de la Armada (Comodoro Py 2055)"]
-    }
-}
+def limpiar_texto(texto):
+    if not texto:
+        return ""
+    return str(texto).replace("•", "-").encode('latin-1', 'ignore').decode('latin-1')
+
+class PDFReporte(FPDF):
+    def header(self):
+        self.set_font("Arial", "B", 16)
+        self.set_text_color(0, 51, 102) # Azul institucional
+        self.cell(0, 10, limpiar_texto("SPPRO"), ln=True, align="C")
+        self.set_font("Arial", "B", 12)
+        self.cell(0, 6, limpiar_texto("Informe de Verificación"), ln=True, align="C")
+        self.line(10, 25, 200, 25)
+        self.ln(10)
+
+    def footer(self):
+        self.set_y(-25)
+        self.set_font("Arial", "", 9)
+        self.cell(0, 5, limpiar_texto("____________"), 0, 1, "C")
+        self.cell(0, 5, limpiar_texto("Firma del operador"), 0, 1, "C")
+        self.ln(2)
+        self.set_font("Arial", "I", 8)
+        self.cell(0, 5, limpiar_texto("SPPRO\nby Angel Ibañez"), 0, 0, "R")
 
 # ==========================================
-# 3. ESTADOS DE SESIÓN
+# ESTADOS DE SESIÓN
 # ==========================================
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
     st.session_state["user_role"] = None
     st.session_state["username"] = None
 
-if "resultado_busqueda" not in st.session_state:
-    st.session_state["resultado_busqueda"] = None
-
 # ==========================================
-# 4. CLASE PDF PERSONALIZADA
-# ==========================================
-class PDFReporte(FPDF):
-    def footer(self):
-        self.set_y(-15)
-        self.set_font("Arial", "", 8)
-        self.cell(0, 10, limpiar_texto("by Angel Ibañez"), 0, 0, "R")
-
-# ==========================================
-# 5. GENERADOR DE PDF (Con limpieza de texto para evitar fallos)
-# ==========================================
-def generar_pdf_evento(edificio, direccion, fecha_hora, clima, altura, accesos, hospitales, comisarias, pfa, ffaa):
-    pdf = PDFReporte()
-    pdf.add_page()
-    pdf.set_font("Arial", "B", 16)
-    
-    pdf.cell(200, 10, txt=limpiar_texto("VERIFICACIÓN INTELIGENTE DE EDIFICIOS (SPPRO)"), ln=True, align="C")
-    pdf.set_font("Arial", "", 10)
-    pdf.cell(200, 6, txt=limpiar_texto("Sistema de Seguridad Patrimonial by Angel Ibañez"), ln=True, align="C")
-    pdf.line(10, 25, 200, 25)
-    
-    pdf.ln(10)
-    pdf.set_font("Arial", "B", 12)
-    pdf.cell(200, 8, txt=limpiar_texto("1. Datos del Evento y Contexto Geográfico"), ln=True)
-    pdf.set_font("Arial", "", 10)
-    pdf.cell(200, 6, txt=limpiar_texto(f"- Edificio / Sitio: {edificio}"), ln=True)
-    pdf.cell(200, 6, txt=limpiar_texto(f"- Dirección: {direccion}"), ln=True)
-    pdf.cell(200, 6, txt=limpiar_texto(f"- Fecha y Hora: {fecha_hora}"), ln=True)
-    pdf.cell(200, 6, txt=limpiar_texto(f"- Clima y Viento: {clima}"), ln=True)
-    pdf.cell(200, 6, txt=limpiar_texto(f"- Altura sobre el nivel del mar: {altura}"), ln=True)
-    
-    pdf.ln(5)
-    pdf.set_font("Arial", "B", 12)
-    pdf.cell(200, 8, txt=limpiar_texto("2. Detalle de Entradas, Salidas y Seguridad"), ln=True)
-    pdf.set_font("Arial", "", 9)
-    pdf.multi_cell(0, 6, txt=limpiar_texto(accesos))
-    
-    pdf.ln(5)
-    pdf.set_font("Arial", "B", 12)
-    pdf.cell(200, 8, txt=limpiar_texto("3. Puntos Seguros y Fuerzas de Apoyo Cercanas"), ln=True)
-    pdf.set_font("Arial", "", 9)
-    
-    # Hemos sustituido las viñetas por guiones estándar para mayor seguridad
-    texto_fuerzas = (f"Hospitales:\n" + "\n".join([f"- {h}" for h in hospitales]) + 
-                    f"\n\nComisarias (Policia de la Ciudad):\n" + "\n".join([f"- {c}" for c in comisarias]) +
-                    f"\n\nPolicia Federal Argentina (PFA):\n" + "\n".join([f"- {p}" for p in pfa]) +
-                    f"\n\nFuerzas Armadas (FFAA):\n" + "\n".join([f"- {f}" for f in ffaa]))
-                    
-    pdf.multi_cell(0, 6, txt=limpiar_texto(texto_fuerzas))
-    
-    pdf.ln(10)
-    pdf.set_font("Arial", "B", 10)
-    pdf.cell(200, 6, txt=limpiar_texto("Firma Operador a Cargo: ________"), ln=True)
-    
-    # Se genera en latin-1 (formato byte) correcto para Streamlit y FPDF
-    return pdf.output(dest="S").encode("latin-1")
-
-# ==========================================
-# 6. LOGIN
+# LOGIN
 # ==========================================
 if not st.session_state["logged_in"]:
     st.title("SPPRO")
@@ -259,326 +179,357 @@ if not st.session_state["logged_in"]:
     st.stop()
 
 # ==========================================
-# INTERFAZ PRINCIPAL
+# MENÚ PRINCIPAL Y NAVEGACIÓN
 # ==========================================
-st.title("SPPRO")
-st.caption(f"by Angel Ibañez | Operador activo: {st.session_state['username']} ({st.session_state['user_role']})")
+st.sidebar.title(f"SPPRO | {st.session_state['username']}")
+st.sidebar.caption(f"Rol: {st.session_state['user_role']}")
 
-st.sidebar.title("Menú SPPRO")
-opciones = ["🏢 Verificación de Edificios", "🏥 Puntos Seguros Cercanos", "👥 Gestión de Usuarios"]
-seccion = st.sidebar.radio("Navegación:", opciones)
+menu_items = ["🏢 Verificación de Objetivos", "🏥 Puntos de Apoyo", "🌦️ Clima"]
+if st.session_state["user_role"] == "Administrador":
+    menu_items.append("👥 Gestión de Usuarios")
+
+seccion = st.sidebar.radio("Navegación:", menu_items)
 
 st.sidebar.divider()
-st.sidebar.subheader("📤 Compartir Aplicación")
-st.sidebar.text_input("Enlace de acceso rápido:", value="https://sppro-app.streamlit.app", disabled=True)
-st.sidebar.caption("Copia este enlace para compartir la plataforma con otros operadores.")
-
 if st.sidebar.button("Cerrar Sesión", use_container_width=True):
     st.session_state["logged_in"] = False
     st.rerun()
 
+st.sidebar.markdown("---")
+st.sidebar.write("SPPRO by Angel Ibañez")
+
 # ==========================================
-# SECCIÓN 1: VERIFICACIÓN, BÚSQUEDA Y REGISTRO
+# SECCIÓN 1: VERIFICACIÓN DE OBJETIVOS
 # ==========================================
-if seccion == "🏢 Verificación de Edificios":
-    st.header("🏢 Verificación Inteligente de Edificios y Entorno")
+if seccion == "🏢 Verificación de Objetivos":
+    st.header("🏢 Verificación de Objetivos")
     
-    tab_reg, tab_cons = st.tabs(["🔍 Buscar y Verificar Edificio", "📋 Historial y Reportes PDF"])
+    tab_list, tab_new = st.tabs(["📋 Consultar / Historial", "➕ Nuevo Objetivo"])
     
-    with tab_reg:
-        st.markdown("### 🏛️ Selección del Lugar")
-        tipo_ingreso = st.radio("Método de selección:", ["Edificio / Hotel de renombre (Automático)", "Ingresar dirección / edificio personalizado"])
-        
-        if tipo_ingreso == "Edificio / Hotel de renombre (Automático)":
-            nombre_seleccionado = st.selectbox("Seleccione el sitio conocido:", list(BASE_CONOCIMIENTO.keys()))
-            nombre_edf = nombre_seleccionado
-            datos_sitio = BASE_CONOCIMIENTO[nombre_seleccionado]
-            direccion_edf = datos_sitio["direccion"]
-            clima_automatico = datos_sitio["clima"]
-            altura_automatica = datos_sitio["altura"]
-            hospitales_auto = datos_sitio["hospitales"]
-            comisarias_auto = datos_sitio["comisarias"]
-            pfa_auto = datos_sitio["pfa"]
-            ffaa_auto = datos_sitio["ffaa"]
-        else:
-            nombre_edf = st.text_input("Nombre del Edificio / Sitio")
-            direccion_edf = st.text_input("Dirección exacta")
-            clima_automatico = "☀️ Despejado / 21°C / Viento SE a 12 km/h"
-            altura_automatica = "20 msnm"
-            hospitales_auto = ["Hospital General más cercano (Ver sección Puntos Seguros)"]
-            comisarias_auto = ["Comisaría de la jurisdicción local"]
-            pfa_auto = ["Departamento Central de la Policía Federal Argentina (Moreno 1550)"]
-            ffaa_auto = ["Unidad de Guarnición de las FFAA cercana"]
-
-        st.divider()
-
-        col_b1, col_b2 = st.columns([1, 3])
-        with col_b1:
-            btn_buscar = st.button("🔍 Buscar / Verificar", use_container_width=True)
+    with tab_new:
+        st.subheader("Registrar Nuevo Objetivo")
+        with st.form("form_nuevo_objetivo"):
+            nombre = st.text_input("Nombre del objetivo *")
+            tipo = st.selectbox("Tipo de objetivo", ["Edificio", "Hotel", "Empresa", "Comercio", "Organismo público", "Institución", "Otro"])
+            direccion = st.text_input("Dirección *")
+            altura = st.text_input("Altura catastral")
             
-        if btn_buscar:
-            if nombre_edf:
-                st.session_state["resultado_busqueda"] = {
-                    "nombre": nombre_edf,
-                    "direccion": direccion_edf,
-                    "clima": clima_automatico,
-                    "altura": altura_automatica,
-                    "hospitales": hospitales_auto,
-                    "comisarias": comisarias_auto,
-                    "pfa": pfa_auto,
-                    "ffaa": ffaa_auto
-                }
-                st.success("✅ Verificación preliminar realizada con éxito (Lista para reporte o registro).")
-            else:
-                st.warning("⚠️ Indique o seleccione un edificio antes de buscar.")
-
-        if st.session_state["resultado_busqueda"]:
-            res = st.session_state["resultado_busqueda"]
-            st.markdown("### 📊 Datos Ambientales y Puntos Seguros / Fuerzas Encontradas")
+            col_c1, col_c2 = st.columns(2)
+            with col_c1:
+                latitud = st.number_input("Latitud (Manual)", format="%.6f", value=0.0)
+            with col_c2:
+                longitud = st.number_input("Longitud (Manual)", format="%.6f", value=0.0)
+                
+            col_p1, col_p2 = st.columns(2)
+            with col_p1:
+                pisos = st.number_input("Cantidad de pisos", min_value=0, value=1)
+            with col_p2:
+                subsuelos = st.number_input("Cantidad de subsuelos", min_value=0, value=0)
+                
+            horario = st.text_input("Horario de funcionamiento")
+            observaciones = st.text_area("Observaciones generales")
             
-            c_info1, c_info2 = st.columns(2)
-            with c_info1:
-                st.info(f"📍 *Sitio:* {res['nombre']}\n\n🏠 *Dirección:* {res['direccion']}\n\n🌤️ *Clima y Viento:* {res['clima']}\n\n⛰️ *Altura sobre el nivel del mar:* {res['altura']}")
-            with c_info2:
-                st.warning(f"🏥 *Hospitales:*\n" + "\n".join([f"- {h}" for h in res['hospitales']]) + 
-                           f"\n\n👮 *Comisarías:*\n" + "\n".join([f"- {c}" for c in res['comisarias']]) +
-                           f"\n\n🚨 *Destinos PFA:*\n" + "\n".join([f"- {p}" for p in res['pfa']]) +
-                           f"\n\n🎖️ *Destinos FFAA:*\n" + "\n".join([f"- {f}" for f in res['ffaa']]))
-
-        st.divider()
-        
-        st.markdown("### 📄 Generación de Reporte PDF Instantáneo")
-        if st.session_state["resultado_busqueda"]:
-            res_pdf = st.session_state["resultado_busqueda"]
-            
-            accesos_temp = st.text_area("Notas sobre accesos para el reporte instantáneo:", value="Accesos principales verificados por operador.")
-            
-            fecha_rep_inst = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            pdf_bytes_inst = generar_pdf_evento(
-                res_pdf["nombre"],
-                res_pdf["direccion"],
-                fecha_rep_inst,
-                res_pdf["clima"],
-                res_pdf["altura"],
-                accesos_temp,
-                res_pdf["hospitales"],
-                res_pdf["comisarias"],
-                res_pdf["pfa"],
-                res_pdf["ffaa"]
-            )
-            
-            st.download_button(
-                label=f"⬇️ Descargar Reporte PDF Instantáneo - {res_pdf['nombre']}",
-                data=pdf_bytes_inst,
-                file_name=f"Reporte_Instantaneo_{res_pdf['nombre'].replace(' ', '_')}.pdf",
-                mime="application/pdf",
-                use_container_width=True
-            )
-        else:
-            st.info("💡 Realice la búsqueda/verificación arriba para habilitar el reporte PDF instantáneo.")
-
-        st.divider()
-
-        with st.form("form_guardar_verificacion"):
-            st.markdown("### 🚪 Registro Oficial en Base de Datos y Accesos")
-            accesos_edf = st.text_area("Detallar accesos principales, salidas de emergencia, portones y zonas vulnerables para registro:")
-            
-            st.markdown("### 📷 Soporte Visual")
-            st.file_uploader("Subir foto o captura de Google Maps", type=["jpg", "png", "jpeg"])
-            es_privado = st.checkbox("🔒 Marcar como Edificio Privado (Acceso restringido)")
-            
-            btn_guardar = st.form_submit_button("💾 Guardar en el Historial")
-            
-            if btn_guardar:
-                if nombre_edf and direccion_edf:
+            submitted = st.form_submit_button("Guardar Objetivo")
+            if submitted:
+                if nombre and direccion:
                     conn = sqlite3.connect("sppro.db")
                     cursor = conn.cursor()
-                    
                     cursor.execute("""
-                        INSERT INTO edificios (nombre, direccion, accesos, imagen_path, privado) 
-                        VALUES (?, ?, ?, ?, ?)
-                    """, (nombre_edf, direccion_edf, accesos_edf, "Imagen adjunta", 1 if es_privado else 0))
-                    
-                    fecha_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    cursor.execute("""
-                        INSERT INTO eventos_historial (fecha_hora, edificio, clima, altura_snm, observaciones) 
-                        VALUES (?, ?, ?, ?, ?)
-                    """, (fecha_str, nombre_edf, clima_automatico, altura_automatica, accesos_edf))
-                    
+                        INSERT INTO edificios (nombre, tipo, direccion, altura, latitud, longitud, pisos, subsuelos, horario, observaciones)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (nombre, tipo, direccion, altura, latitud, longitud, pisos, subsuelos, horario, observaciones))
                     conn.commit()
                     conn.close()
-                    st.success("✅ Verificación guardada correctamente en la base de datos.")
+                    st.success("✅ Objetivo registrado exitosamente.")
                 else:
-                    st.error("⚠️ Complete los datos del edificio antes de guardar.")
+                    st.error("⚠️ El nombre y la dirección son obligatorios.")
 
-    with tab_cons:
-        st.subheader("📋 Historial de Edificios y Generación de Reportes PDF")
+    with tab_list:
+        st.subheader("Consultar Objetivos Registrados")
         conn = sqlite3.connect("sppro.db")
-        cursor = conn.cursor()
-        
-        try:
-            cursor.execute("SELECT id, nombre, direccion, accesos, privado FROM edificios")
-            edificios_lista = cursor.fetchall()
-        except sqlite3.OperationalError:
-            cursor.execute("DROP TABLE IF EXISTS edificios")
-            cursor.execute("""
-                CREATE TABLE edificios (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    nombre TEXT NOT NULL,
-                    direccion TEXT NOT NULL,
-                    accesos TEXT,
-                    imagen_path TEXT,
-                    privado INTEGER NOT NULL DEFAULT 0
-                )
-            """)
-            conn.commit()
-            cursor.execute("SELECT id, nombre, direccion, accesos, privado FROM edificios")
-            edificios_lista = cursor.fetchall()
-            
+        df_edificios = pd.read_sql("SELECT * FROM edificios", conn)
         conn.close()
         
-        if edificios_lista:
-            for edf_id, nombre, direccion, accesos, privado in edificios_lista:
-                with st.expander(f"🏢 {nombre} - {direccion} ({'Privado' if privado else 'Público'})"):
-                    st.write(f"*Dirección:* {direccion}")
-                    st.write(f"*Accesos y Salidas:* {accesos}")
-                    
-                    datos_extra = BASE_CONOCIMIENTO.get(nombre, {
-                        "clima": "☀️ Despejado / 21°C", 
-                        "altura": "20 msnm", 
-                        "hospitales": ["Hospital General cercano"], 
-                        "comisarias": ["Comisaría local"],
-                        "pfa": ["Departamento Central de la Policía Federal Argentina (Moreno 1550)"],
-                        "ffaa": ["Unidad de las FFAA cercana"]
-                    })
-                    
-                    fecha_rep = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    pdf_bytes = generar_pdf_evento(
-                        nombre, 
-                        direccion,
-                        fecha_rep, 
-                        datos_extra["clima"], 
-                        datos_extra["altura"], 
-                        accesos or "Sin detalles de accesos registrados",
-                        datos_extra["hospitales"],
-                        datos_extra["comisarias"],
-                        datos_extra["pfa"],
-                        datos_extra["ffaa"]
-                    )
-                    
-                    st.download_button(
-                        label=f"⬇️ Descargar Reporte PDF - {nombre}",
-                        data=pdf_bytes,
-                        file_name=f"Reporte_Edificio_{nombre.replace(' ', '_')}.pdf",
-                        mime="application/pdf",
-                        key=f"dl_pdf_{edf_id}"
-                    )
+        if df_edificios.empty:
+            st.info("No hay objetivos registrados en el sistema.")
         else:
-            st.info("No hay edificios registrados todavía en el historial.")
+            for idx, row in df_edificios.iterrows():
+                edf_id = row["id"]
+                with st.expander(f"🏢 {row['nombre']} ({row['tipo'] or 'General'}) - {row['direccion']}"):
+                    st.write(f"*Dirección:* {row['direccion']} | *Altura:* {row['altura']}")
+                    st.write(f"*Coordenadas:* Lat: {row['latitud']}, Lon: {row['longitud']}")
+                    st.write(f"*Pisos:* {row['pisos']} | *Subsuelos:* {row['subsuelos']} | *Horario:* {row['horario']}")
+                    st.write(f"*Observaciones:* {row['observaciones']}")
+                    
+                    # Cargar datos asociados
+                    conn = sqlite3.connect("sppro.db")
+                    c = conn.cursor()
+                    c.execute("SELECT archivo, descripcion FROM fotografias WHERE edificio_id = ?", (edf_id,))
+                    fotos = c.fetchall()
+                    c.execute("SELECT ubicacion, observacion FROM camaras WHERE edificio_id = ?", (edf_id,))
+                    camaras = c.fetchall()
+                    conn.close()
+                    
+                    st.markdown(f"---")
+                    st.markdown(f"*Fotografías registradas:* {len(fotos)} | *Cámaras registradas:* {len(camaras)}")
+                    
+                    # Subir nueva fotografía
+                    with st.form(f"form_foto_{edf_id}"):
+                        st.markdown("### ➕ Agregar Fotografía")
+                        desc_foto = st.text_input("Descripción de la fotografía (ej. Fachada, Acceso principal)", key=f"desc_{edf_id}")
+                        archivo_subido = st.file_uploader("Seleccionar imagen", type=["jpg", "jpeg", "png"], key=f"file_{edf_id}")
+                        btn_subir_foto = st.form_submit_button("Guardar Fotografía")
+                        
+                        if btn_subir_foto and archivo_subido:
+                            dir_fotos = f"fotos/edificio_{edf_id}"
+                            os.makedirs(dir_fotos, exist_ok=True)
+                            ruta_archivo = os.path.join(dir_fotos, archivo_subido.name)
+                            with open(ruta_archivo, "wb") as f:
+                                f.write(archivo_subido.getbuffer())
+                                
+                            conn = sqlite3.connect("sppro.db")
+                            cursor = conn.cursor()
+                            cursor.execute("INSERT INTO fotografias (edificio_id, archivo, descripcion, usuario, fecha) VALUES (?, ?, ?, ?, ?)",
+                                           (edf_id, ruta_archivo, desc_foto or "Sin descripción", st.session_state["username"], datetime.datetime.now().strftime("%Y-%m-%d %H:%M")))
+                            conn.commit()
+                            conn.close()
+                            st.success("✅ Fotografía guardada persistentemente.")
+                            st.rerun()
+
+                    # Registro manual de cámaras
+                    with st.form(f"form_cam_{edf_id}"):
+                        st.markdown("### 🎥 Registrar Cámara")
+                        ubicacion_cam = st.text_input("Ubicación de la cámara (ej. Acceso principal)", key=f"ucam_{edf_id}")
+                        obs_cam = st.text_input("Observación", key=f"ocam_{edf_id}")
+                        btn_cam = st.form_submit_button("Guardar Cámara")
+                        
+                        if btn_cam and ubicacion_cam:
+                            conn = sqlite3.connect("sppro.db")
+                            cursor = conn.cursor()
+                            cursor.execute("INSERT INTO camaras (edificio_id, ubicacion, observacion) VALUES (?, ?, ?)",
+                                           (edf_id, ubicacion_cam, obs_cam))
+                            conn.commit()
+                            conn.close()
+                            st.success("✅ Cámara registrada.")
+                            st.rerun()
+
+                    # Generación de Informe PDF Profesional
+                    st.markdown("### 📄 Generar Informe PDF")
+                    
+                    # Selección de fotografías para el PDF
+                    fotos_seleccionadas = []
+                    if fotos:
+                        st.markdown("Seleccione fotografías para incluir en el informe:")
+                        for foto in fotos:
+                            ruta_f, desc_f = foto[0], foto[1]
+                            if st.checkbox(f"{desc_f} ({os.path.basename(ruta_f)})", value=True, key=f"chk_f_{edf_id}_{ruta_f}"):
+                                fotos_seleccionadas.append(foto)
+                                
+                    if st.button("Descargar PDF de este Objetivo", key=f"pdf_{edf_id}"):
+                        pdf = PDFReporte()
+                        pdf.add_page()
+                        pdf.set_font("Arial", "B", 12)
+                        pdf.set_text_color(0, 51, 102)
+                        
+                        # 1. IDENTIFICACIÓN DEL OBJETIVO
+                        pdf.cell(0, 8, limpiar_texto("IDENTIFICACIÓN DEL OBJETIVO"), ln=True)
+                        pdf.set_font("Arial", "", 10)
+                        pdf.set_text_color(0, 0, 0)
+                        pdf.cell(0, 6, limpiar_texto(f"Nombre: {row['nombre']}"), ln=True)
+                        pdf.cell(0, 6, limpiar_texto(f"Tipo: {row['tipo']}"), ln=True)
+                        pdf.cell(0, 6, limpiar_texto(f"Dirección: {row['direccion']} (Altura: {row['altura']})"), ln=True)
+                        pdf.cell(0, 6, limpiar_texto(f"Coordenadas: Lat: {row['latitud']}, Lon: {row['longitud']}"), ln=True)
+                        pdf.cell(0, 6, limpiar_texto(f"Pisos: {row['pisos']} | Subsuelos: {row['subsuelos']}"), ln=True)
+                        pdf.cell(0, 6, limpiar_texto(f"Horario de funcionamiento: {row['horario']}"), ln=True)
+                        pdf.ln(4)
+                        
+                        # 2. CONDICIONES METEOROLÓGICAS
+                        pdf.set_font("Arial", "B", 12)
+                        pdf.set_text_color(0, 51, 102)
+                        pdf.cell(0, 8, limpiar_texto("CONDICIONES METEOROLÓGICAS"), ln=True)
+                        pdf.set_font("Arial", "", 10)
+                        pdf.set_text_color(0, 0, 0)
+                        clima_actual = clima.obtener_clima()
+                        if clima_actual:
+                            pdf.cell(0, 6, limpiar_texto(f"Temperatura: {clima_actual['temperatura']} | Estado: {clima_actual['estado']}"), ln=True)
+                            pdf.cell(0, 6, limpiar_texto(f"Viento: {clima_actual['viento']} | Humedad: {clima_actual['humedad']} | Presión: {clima_actual['presion']}"), ln=True)
+                        else:
+                            pdf.cell(0, 6, limpiar_texto("⚠️ Información meteorológica no disponible."), ln=True)
+                        pdf.ln(4)
+
+                        # 3. CÁMARAS OBSERVADAS
+                        if camaras:
+                            pdf.set_font("Arial", "B", 12)
+                            pdf.set_text_color(0, 51, 102)
+                            pdf.cell(0, 8, limpiar_texto("CÁMARAS OBSERVADAS"), ln=True)
+                            pdf.set_font("Arial", "", 10)
+                            pdf.set_text_color(0, 0, 0)
+                            for idx_c, cam in enumerate(camaras, 1):
+                                pdf.cell(0, 6, limpiar_texto(f"Cámara {idx_c:02d} - Ubicación: {cam[0]} | Observación: {cam[1]}"), ln=True)
+                            pdf.ln(4)
+
+                        # 4. PUNTOS DE APOYO
+                        conn_p = sqlite3.connect("sppro.db")
+                        puntos_db = pd.read_sql("SELECT * FROM puntos_apoyo", conn_p).values.tolist()
+                        conn_p.close()
+                        if puntos_db:
+                            pdf.set_font("Arial", "B", 12)
+                            pdf.set_text_color(0, 51, 102)
+                            pdf.cell(0, 8, limpiar_texto("PUNTOS DE APOYO"), ln=True)
+                            pdf.set_font("Arial", "", 10)
+                            pdf.set_text_color(0, 0, 0)
+                            for pt in puntos_db:
+                                pdf.cell(0, 6, limpiar_texto(f"[{pt[2]}] {pt[1]} - {pt[3]} ({pt[4]})"), ln=True)
+                            pdf.ln(4)
+
+                        # 5. REGISTRO FOTOGRÁFICO SELECCIONADO
+                        if fotos_seleccionadas:
+                            pdf.set_font("Arial", "B", 12)
+                            pdf.set_text_color(0, 51, 102)
+                            pdf.cell(0, 8, limpiar_texto("REGISTRO FOTOGRÁFICO"), ln=True)
+                            pdf.set_font("Arial", "", 10)
+                            pdf.set_text_color(0, 0, 0)
+                            for foto in fotos_seleccionadas:
+                                ruta_f, desc_f = foto[0], foto[1]
+                                if os.path.exists(ruta_f):
+                                    pdf.cell(0, 6, limpiar_texto(f"Foto: {desc_f}"), ln=True)
+                                    try:
+                                        pdf.image(ruta_f, w=80)
+                                        pdf.ln(4)
+                                    except:
+                                        pass
+                            pdf.ln(4)
+
+                        # 6. OBSERVACIONES GENERALES
+                        if row["observaciones"]:
+                            pdf.set_font("Arial", "B", 12)
+                            pdf.set_text_color(0, 51, 102)
+                            pdf.cell(0, 8, limpiar_texto("OBSERVACIONES"), ln=True)
+                            pdf.set_font("Arial", "", 10)
+                            pdf.set_text_color(0, 0, 0)
+                            pdf.multi_cell(0, 6, limpiar_texto(row["observaciones"]))
+
+                        pdf_bytes = pdf.output(dest="S").encode("latin-1")
+                        st.download_button(
+                            label=f"📥 Descargar PDF Generado - {row['nombre']}",
+                            data=pdf_bytes,
+                            file_name=f"Informe_SPPRO_{row['nombre'].replace(' ', '_')}.pdf",
+                            mime="application/pdf",
+                            key=f"dl_final_{edf_id}"
+                        )
 
 # ==========================================
-# SECCIÓN 2: PUNTOS SEGUROS CERCANOS
+# SECCIÓN 2: PUNTOS DE APOYO
 # ==========================================
-elif seccion == "🏥 Puntos Seguros Cercanos":
-    st.header("🏥 Puntos Seguros (Hospitales, Comisarías, PFA y FFAA)")
-    st.caption("Directorio de asistencia, fuerzas federales, armadas y recursos críticos cercanos para la operación de seguridad.")
+elif seccion == "🏥 Puntos de Apoyo":
+    st.header("🏥 Puntos de Apoyo")
     
-    tab_hosp, tab_com, tab_fed, tab_ffaa = st.tabs([
-        "🏥 Hospitales", 
-        "👮 Comisarías (Ciudad)", 
-        "🚨 Policía Federal (PFA)", 
-        "🎖️ Fuerzas Armadas (FFAA)"
-    ])
+    tab_p1, tab_p2 = st.tabs(["Listado", "Agregar Punto de Apoyo"])
     
-    with tab_hosp:
-        st.markdown("### Centros Médicos de Urgencia")
-        st.write("• *Hospital General de Agudos Dr. J. A. Fernández* - Cerviño 3356, CABA")
-        st.write("• *Hospital General de Agudos B. Rivadavia* - Av. Las Heras 2670, CABA")
-        st.write("• *Hospital Italiano de Buenos Aires* - Tte. Gral. Juan Domingo Perón 4190, CABA")
-        st.write("• *Hospital General de Agudos Dr. C. Argerich* - Pi y Margall 750, CABA")
-
-    with tab_com:
-        st.markdown("### Dependencias de la Policía de la Ciudad")
-        st.write("• *Comisaría Vecinal 1A* - Suipacha 1156, CABA")
-        st.write("• *Comisaría Vecinal 2B* - Las Heras y Pueyrredón, CABA")
-        st.write("• *Comisaría Vecinal 3B* - Pasco 473, CABA")
-
-    with tab_fed:
-        st.markdown("### Destinos y Dependencias de la Policía Federal Argentina (PFA)")
-        st.write("• *Departamento central de la policía federal argentina* - Moreno 1550, CABA")
-        st.write("• *Cuerpo policía montada de la PFA* - Cavia 3302, CABA")
-        st.write("• *Cuerpo policía motorizada PFA* - Av. Vélez Sarsfield 1981, CABA")
-        st.write("• *Policía científica PFA* - Azopardo 670, CABA")
-
-    with tab_ffaa:
-        st.markdown("### Cuarteles y Edificios de las Fuerzas Armadas (FFAA)")
-        st.write("• *Edificio Libertador (Ministerio de Defensa / Estado Mayor General del Ejército)* - Azopardo 250, CABA")
-        st.write("• *Edificio Cóndor (Estado Mayor General de la Fuerza Aérea)* - Comodoro Py 2550, CABA")
-        st.write("• *Estado Mayor General de la Armada* - Comodoro Py 2055, CABA")
-        st.write("• *Estado Mayor Conjunto de las FFAA* - Paseo Colón 1401, CABA")
+    with tab_p2:
+        with st.form("form_punto_apoyo"):
+            nombre_pa = st.text_input("Nombre")
+            tipo_pa = st.selectbox("Categoría", ["Hospitales", "Comisarías", "Bomberos", "Defensa Civil", "Otros"])
+            dir_pa = st.text_input("Dirección")
+            obs_pa = st.text_area("Observaciones")
+            
+            if st.form_submit_button("Guardar Punto de Apoyo"):
+                if nombre_pa:
+                    conn = sqlite3.connect("sppro.db")
+                    c = conn.cursor()
+                    c.execute("INSERT INTO puntos_apoyo (nombre, tipo, direccion, observaciones) VALUES (?, ?, ?, ?)",
+                              (nombre_pa, tipo_pa, dir_pa, obs_pa))
+                    conn.commit()
+                    conn.close()
+                    st.success("✅ Punto de apoyo registrado correctamente.")
+                else:
+                    st.error("⚠️ El nombre es obligatorio.")
+                    
+    with tab_p1:
+        conn = sqlite3.connect("sppro.db")
+        df_pa = pd.read_sql("SELECT * FROM puntos_apoyo", conn)
+        conn.close()
+        
+        if df_pa.empty:
+            st.info("No hay puntos de apoyo registrados.")
+        else:
+            st.dataframe(df_pa, use_container_width=True)
 
 # ==========================================
-# SECCIÓN 3: GESTIÓN DE USUARIOS
+# SECCIÓN 3: CLIMA
+# ==========================================
+elif seccion == "🌦️ Clima":
+    st.header("🌦️ Condiciones Meteorológicas")
+    datos_clima = clima.obtener_clima()
+    
+    if datos_clima:
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Temperatura", datos_clima["temperatura"])
+            st.metric("Estado del cielo", datos_clima["estado"])
+        with col2:
+            st.metric("Viento", datos_clima["viento"])
+            st.metric("Humedad", datos_clima["humedad"])
+        with col3:
+            st.metric("Presión", datos_clima["presion"])
+        st.caption(f"Última actualización: {datos_clima['actualizacion']}")
+    else:
+        st.warning("⚠️ Información meteorológica no disponible.")
+
+# ==========================================
+# SECCIÓN 4: GESTIÓN DE USUARIOS
 # ==========================================
 elif seccion == "👥 Gestión de Usuarios":
-    st.header("👥 Panel de Administración de Usuarios")
-    
     if st.session_state["user_role"] != "Administrador":
-        st.error("⛔ Acceso denegado. Solo los administradores pueden gestionar usuarios.")
+        st.error("⛔ Acceso denegado.")
         st.stop()
         
-    st.subheader("Dar de Alta a Nuevo Usuario")
-    with st.form("form_nuevo_usuario"):
-        nuevo_user = st.text_input("Nombre de Usuario")
-        nuevo_pass = st.text_input("Contraseña", type="password")
-        nuevo_rol = st.selectbox("Rol del Usuario", ["Operador", "Administrador"])
+    st.header("👥 Gestión de Usuarios")
+    
+    with st.form("nuevo_usuario_admin"):
+        st.subheader("Crear Usuario")
+        nuevo_user = st.text_input("Username")
+        nuevo_pass = st.text_input("Password", type="password")
+        nuevo_rol = st.selectbox("Rol", ["Administrador", "Operador"])
         
-        if st.form_submit_button("Crear Usuario"):
+        if st.form_submit_button("Crear"):
             if nuevo_user and nuevo_pass:
                 try:
                     conn = sqlite3.connect("sppro.db")
-                    cursor = conn.cursor()
-                    cursor.execute("INSERT INTO usuarios VALUES (?, ?, 1, ?)", (nuevo_user, nuevo_pass, nuevo_rol))
+                    c = conn.cursor()
+                    c.execute("INSERT INTO usuarios VALUES (?, ?, 1, ?)", (nuevo_user, nuevo_pass, nuevo_rol))
                     conn.commit()
                     conn.close()
-                    st.success(f"✅ Usuario '{nuevo_user}' creado exitosamente.")
+                    st.success("✅ Usuario creado exitosamente.")
                     st.rerun()
                 except:
-                    st.error("❌ El nombre de usuario ya existe.")
+                    st.error("❌ El usuario ya existe.")
             else:
-                st.warning("⚠️ Complete todos los campos.")
+                st.warning("⚠️ Complete los campos.")
 
     st.divider()
-    st.subheader("Usuarios Registrados (Alta / Baja)")
-    
+    st.subheader("Usuarios Registrados")
     conn = sqlite3.connect("sppro.db")
-    cursor = conn.cursor()
-    cursor.execute("SELECT username, activo, rol FROM usuarios")
-    usuarios_db = cursor.fetchall()
+    df_users = pd.read_sql("SELECT username, activo, rol FROM usuarios", conn)
     conn.close()
     
-    for u, activo, rol in usuarios_db:
-        col_u1, col_u2, col_u3 = st.columns([2, 1, 1])
-        with col_u1:
-            st.write(f"👤 *{u}* ({rol})")
-        with col_u2:
-            estado_texto = "🟢 Activo" if activo == 1 else "🔴 Inactivo"
-            st.write(estado_texto)
-        with col_u3:
-            if u != "admin":
-                if activo == 1:
-                    if st.button("Dar de Baja", key=f"baja_{u}"):
-                        conn = sqlite3.connect("sppro.db")
-                        cursor = conn.cursor()
-                        cursor.execute("UPDATE usuarios SET activo = 0 WHERE username = ?", (u,))
-                        conn.commit()
-                        conn.close()
-                        st.rerun()
-                else:
-                    if st.button("Dar de Alta", key=f"alta_{u}"):
-                        conn = sqlite3.connect("sppro.db")
-                        cursor = conn.cursor()
-                        cursor.execute("UPDATE usuarios SET activo = 1 WHERE username = ?", (u,))
-                        conn.commit()
-                        conn.close()
-                        st.rerun()
+    for _, row in df_users.iterrows():
+        cols = st.columns([2, 1, 1, 1])
+        cols[0].write(row["username"])
+        cols[1].write(row["rol"])
+        cols[2].write("🟢 Activo" if row["activo"] == 1 else "🔴 Inactivo")
+        if row["username"] != "admin":
+            if row["activo"] == 1:
+                if cols[3].button("Dar de baja", key=f"baja_{row['username']}"):
+                    conn = sqlite3.connect("sppro.db")
+                    conn.cursor().execute("UPDATE usuarios SET activo = 0 WHERE username = ?", (row["username"],))
+                    conn.commit()
+                    conn.close()
+                    st.rerun()
+            else:
+                if cols[3].button("Dar de alta", key=f"alta_{row['username']}"):
+                    conn = sqlite3.connect("sppro.db")
+                    conn.cursor().execute("UPDATE usuarios -> SET activo = 1 WHERE username = ?", (row["username"],))
+                    conn.commit()
+                    conn.close()
+                    st.rerun()
