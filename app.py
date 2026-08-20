@@ -206,6 +206,85 @@ if "historial_auditoria" not in st.session_state:
   st.session_state["historial_auditoria"] = []
 
 
+# --- BASE DE DATOS COMPLETA DE PUNTOS SEGUROS (HOSPITALES + COMISARÍAS + PFA) ---
+puntos_seguros = {
+    # --- HOSPITALES GENERALES DE AGUDOS ---
+    "Hospital Alvarez (Flores)": (-34.6190, -58.4610),
+    "Hospital Argerich (La Boca)": (-34.6366, -58.3639),
+    "Hospital Durand (Caballito)": (-34.6111, -58.4347),
+    "Hospital Fernández (Palermo)": (-34.5833, -58.4069),
+    "Hospital Cecilia Grierson (Lugano)": (-34.6852, -58.4612),
+    "Hospital Penna (Parque Patricios)": (-34.6432, -58.3912),
+    "Hospital Piñero (Flores)": (-34.6432, -58.4412),
+    "Hospital Pirovano (Coghlan)": (-34.5583, -58.4839),
+    "Hospital Ramos Mejía (Balvanera)": (-34.6152, -58.4079),
+    "Hospital Rivadavia (Recoleta)": (-34.5852, -58.3976),
+    "Hospital Santojanni (Liniers)": (-34.6531, -58.5134),
+    "Hospital Tornú (Villa Ortúzar)": (-34.5856, -58.4812),
+    "Hospital Vélez Sarsfield (Monte Castro)": (-34.6291, -58.5089),
+    "Hospital Zubizarreta (Villa Devoto)": (-34.5954, -58.5176),
+    "Hospital de Clínicas (Recoleta)": (-34.5983, -58.3986),
+    # --- COMISARÍAS VECINALES Y COMUNALES DE CABA ---
+    "Comisaría Comunal 1 / Vecinal 1-A (Retiro)": (-34.5842, -58.3695),
+    "Comisaría Vecinal 1-B (Monserrat / San Telmo)": (-34.6177, -58.3803),
+    "Comisaría Vecinal 1-C (Constitución)": (-34.6251, -58.3814),
+    "Comisaría Vecinal 1-D (San Nicolás)": (-34.6033, -58.3872),
+    "Comisaría Vecinal 1-E (Puerto Madero)": (-34.6201, -58.3614),
+    "Comisaría Comunal 2 / Vecinal 2-A (Recoleta)": (-34.5911, -58.3923),
+    "Comisaría Vecinal 2-B (Recoleta Norte)": (-34.5950, -58.3960),
+    "Comisaría Comunal 3 (Balvanera / San Cristóbal)": (-34.6149, -58.3936),
+    "Comisaría Vecinal 3-A (Balvanera)": (-34.6021, -58.3980),
+    "Comisaría Vecinal 3-B (San Cristóbal)": (-34.6210, -58.4050),
+    "Comisaría Comunal 4 (Parque Patricios)": (-34.6419, -58.4028),
+    "Comisaría Vecinal 4-A (Barracas)": (-34.6470, -58.3750),
+    "Comisaría Vecinal 4-B (La Boca)": (-34.6342, -58.3639),
+    "Comisaría Vecinal 4-C (Nueva Pompeya)": (-34.6510, -58.4110),
+    "Comisaría Vecinal 4-D (Barracas Sur)": (-34.6550, -58.3850),
+    "Comisaría Comunal 5 / Vecinal 5-A (Almagro)": (-34.6044, -58.4156),
+    "Comisaría Vecinal 5-B (Boedo)": (-34.6220, -58.4210),
+    "Comisaría Comunal 6 / Vecinal 6-B (Caballito)": (-34.6203, -58.4532),
+    "Comisaría Vecinal 6-A (Caballito Norte)": (-34.6100, -58.4400),
+    "Comisaría Comunal 7 / Vecinal 7-A (Flores)": (-34.6310, -58.4583),
+    "Comisaría Vecinal 7-B (Parque Chacabuco)": (-34.6380, -58.4420),
+    "Comisaría Vecinal 7-C (Flores Norte)": (-34.6150, -58.4700),
+    "Comisaría Comunal 8 (Villa Soldati)": (-34.6712, -58.4551),
+    "Comisaría Vecinal 8-A (Villa Riachuelo)": (-34.6850, -58.4500),
+    "Comisaría Vecinal 8-B (Villa Lugano)": (-34.6800, -58.4650),
+    "Comisaría Vecinal 8-C (Linderos Soldati)": (-34.6650, -58.4450),
+    "Comisaría Comunal 9 / Vecinal 9-A (Liniers)": (-34.6451, -58.5252),
+    "Comisaría Vecinal 9-B (Mataderos)": (-34.6580, -58.5020),
+    "Comisaría Vecinal 9-C (Parque Avellaneda)": (-34.6420, -58.4750),
+    "Comisaría Comunal 10 (Villa Luro)": (-34.6391, -58.4940),
+    "Comisaría Vecinal 10-A (Villa Real / Monte Castro)": (-34.6210, -58.5150),
+    "Comisaría Vecinal 10-B (Velez Sarsfield)": (-34.6300, -58.4850),
+    "Comisaría Vecinal 10-C (Floresta)": (-34.6320, -58.4800),
+    "Comisaría Comunal 11 (Villa Devoto)": (-34.6110, -58.4729),
+    "Comisaría Vecinal 11-A (Villa General Mitre)": (-34.6050, -58.4650),
+    "Comisaría Vecinal 11-B (Villa Santa Rita / Devoto)": (-34.6000, -58.4900),
+    "Comisaría Comunal 12 (Saavedra)": (-34.5509, -58.4910),
+    "Comisaría Vecinal 12-A (Coghlan)": (-34.5650, -58.4750),
+    "Comisaría Vecinal 12-B (Villa Urquiza)": (-34.5750, -58.4850),
+    "Comisaría Vecinal 12-C (Saavedra Este)": (-34.5600, -58.4950),
+    "Comisaría Comunal 13 (Núñez / Belgrano)": (-34.5552, -58.4591),
+    "Comisaría Vecinal 13-A (Belgrano R)": (-34.5700, -58.4600),
+    "Comisaría Vecinal 13-B (Colegiales)": (-34.5780, -58.4500),
+    "Comisaría Vecinal 13-C (Nuñez)": (-34.5450, -58.4650),
+    "Comisaría Comunal 14 (Palermo)": (-34.5812, -58.4136),
+    "Comisaría Vecinal 14-A (Palermo Botánico)": (-34.5850, -58.4200),
+    "Comisaría Vecinal 14-B (Palermo Soho / Alto Palermo)": (-34.5900, -58.4100),
+    "Comisaría Vecinal 14-C (Palermo Hollywood)": (-34.5800, -58.4350),
+    "Comisaría Comunal 15 (Chacarita / Villa Crespo)": (-34.5905, -58.4510),
+    "Comisaría Vecinal 15-A (La Paternal)": (-34.5980, -58.4600),
+    "Comisaría Vecinal 15-B (Agronomía)": (-34.5850, -58.4900),
+    "Comisaría Vecinal 15-C (Parque Chas)": (-34.5780, -58.4800),
+    # --- DESTINOS ESPECIALES PFA ---
+    "Superintendencia de Policía Científica (PFA)": (-34.6135, -58.3912),
+    "Dirección General de Cuerpos - Policía Montada (PFA)": (-34.6195, -58.3792),
+    "Departamento de Cuerpo Motorizado (PFA)": (-34.6241, -58.3855),
+    "Departamento Central de Policía (PFA - Monserrat)": (-34.6146, -58.3848),
+}
+
+
 # --- FUNCIÓN DE CLIMA ---
 def obtener_clima():
   try:
@@ -301,7 +380,8 @@ if menu == "1️⃣ Verificacion de Edificios":
 
   st.divider()
 
-  lista_nombres = list(st.session_state["edificios_db"].keys())
+  # Listado ordenado alfabéticamente
+  lista_nombres = sorted(list(st.session_state["edificios_db"].keys()))
   edificio_elegido = st.selectbox(
       "Seleccionar Edificio / Sitio", lista_nombres
   )
@@ -352,19 +432,26 @@ if menu == "1️⃣ Verificacion de Edificios":
               use_container_width=True,
           )
 
+    # Cálculo dinámico del punto seguro más cercano
+    lat_edif, lon_edif = map(float, dat["coords"].split(","))
+    distancias = {
+        nombre: ((c[0] - lat_edif) ** 2 + (c[1] - lon_edif) ** 2) ** 0.5
+        for nombre, c in puntos_seguros.items()
+    }
+    mas_cercano = min(distancias, key=distancias.get)
+
     st.markdown("---")
-    st.subheader("🛡️ Puntos Seguros Cercanos (CABA - Direcciones Reales)")
-    st.info(
-        "🏥 **Hospital General de Agudos J. A. Fernández** — Cerviño 3356,"
-        " Recoleta"
+    st.subheader(
+        "🛡️ Punto Seguro Más Cercano (Hospital / Comisaría / Destino PFA)"
     )
-    st.info("🚨 **Comisaría Vecinal 1A** — Suipacha 1156, Retiro")
-    st.info(
-        "🏛️ **Departamento Central de Policía (PFA)** — Moreno 1550, Monserrat"
-    )
-    st.info(
-        "⭐ **Edificio Libertador (Min. de Defensa / FFAA)** — Azopardo 250,"
-        " Monserrat"
+    st.success(f"📍 Destino recomendado por cercanía: **{mas_cercano}**")
+
+    st.markdown("---")
+    st.subheader("🔗 Enlaces de Interés y Pruebas")
+    st.markdown(
+        "👥 [Ir a sección de prueba de personal (Enlace externo)]"
+        "(https://github.com/lupfa111/sppro)",
+        unsafe_allow_html=True,
     )
 
 
@@ -391,6 +478,14 @@ elif menu == "2️⃣ Generacion de PDF":
     )
 
     if st.button("📥 Generar PDF Institucional Profesional", type="primary"):
+      # Cálculo para el PDF
+      lat_edif, lon_edif = map(float, dat["coords"].split(","))
+      distancias = {
+          nombre: ((c[0] - lat_edif) ** 2 + (c[1] - lon_edif) ** 2) ** 0.5
+          for nombre, c in puntos_seguros.items()
+      }
+      mas_cercano = min(distancias, key=distancias.get)
+
       pdf = FPDF()
       pdf.add_page()
 
@@ -477,180 +572,4 @@ elif menu == "2️⃣ Generacion de PDF":
       pdf.ln(5)
 
       pdf.set_font("Arial", "B", 11)
-      pdf.set_text_color(24, 43, 73)
-      pdf.cell(
-          200,
-          8,
-          txt=limpiar_texto("2. PUNTOS SEGUROS DE REFERENCIA (CABA)"),
-          ln=True,
-      )
-
-      pdf.set_font("Arial", "", 10)
-      pdf.set_text_color(0, 0, 0)
-      pdf.cell(
-          200,
-          6,
-          txt=limpiar_texto(
-              "  * Hospital General de Agudos J. A. Fernandez - Cerviño 3356,"
-              " Recoleta"
-          ),
-          ln=True,
-      )
-      pdf.cell(
-          200,
-          6,
-          txt=limpiar_texto(
-              "  * Comisaria Vecinal 1A - Suipacha 1156, Retiro"
-          ),
-          ln=True,
-      )
-      pdf.cell(
-          200,
-          6,
-          txt=limpiar_texto(
-              "  * Departamento Central de Policia (PFA) - Moreno 1550,"
-              " Monserrat"
-          ),
-          ln=True,
-      )
-      pdf.cell(
-          200,
-          6,
-          txt=limpiar_texto(
-              "  * Edificio Libertador (Min. de Defensa / FFAA) - Azopardo"
-              " 250, Monserrat"
-          ),
-          ln=True,
-      )
-      pdf.ln(15)
-
-      pdf.set_font("Arial", "B", 10)
-      pdf.set_text_color(24, 43, 73)
-      pdf.cell(
-          200, 6, txt=limpiar_texto("3. VALIDACION Y FIRMA DIGITAL"), ln=True
-      )
-      pdf.ln(10)
-
-      pdf.set_font("Arial", "", 10)
-      pdf.set_text_color(50, 50, 50)
-      f_texto = (
-          firma_digital
-          if firma_digital
-          else "Firma Autorizada - Control Operativo SPPRO"
-      )
-      pdf.cell(
-          200, 6, txt="________________________________________________", ln=True
-      )
-      pdf.cell(
-          200, 6, txt=limpiar_texto(f"Certificado Digital: {f_texto}"), ln=True
-      )
-      pdf.cell(
-          200,
-          6,
-          txt=limpiar_texto(
-              "Sello de Verificacion Automatizada SPPRO - Seguridad"
-              " Patrimonial"
-          ),
-          ln=True,
-      )
-
-      archivo_pdf = "sppro_verificacion_evento.pdf"
-      pdf.output(archivo_pdf)
-
-      registro_auditoria = {
-          "fecha": fecha_hora_actual,
-          "edificio": nom,
-          "firmante": f_texto,
-          "clima": clima_actual,
-          "fotos_adjuntas": (
-              len(st.session_state.get("fotos_cargadas", []))
-          ),
-      }
-      st.session_state["historial_auditoria"].append(registro_auditoria)
-
-      with open(archivo_pdf, "rb") as f:
-        st.download_button(
-            label="💾 Descargar PDF Profesional Ahora",
-            data=f,
-            file_name=archivo_pdf,
-            mime="application/pdf",
-        )
-      st.success(
-          "¡PDF generado con éxito y registrado en el sistema de auditoría!"
-      )
-  else:
-    st.warning(
-        "⚠️ Atención: Primero debe ir a la solapa **1️⃣ Verificación de Edificios**"
-        " y verificar un objetivo."
-    )
-
-
-# ==========================================
-# SOLAPA 3: AUDITORÍA Y REPORTES PREVIOS
-# ==========================================
-elif menu == "3️⃣ Auditoria y Reportes":
-  st.header("📊 Registro de Auditoría y Reportes Históricos")
-  st.markdown(
-      "Control de trazabilidad de todas las verificaciones y PDFs emitidos en"
-      " la sesión."
-  )
-
-  if len(st.session_state["historial_auditoria"]) == 0:
-    st.info(
-        "Aún no se han generado reportes en esta sesión. Los registros"
-        " aparecerán aquí automáticamente."
-    )
-  else:
-    st.success(
-        f"Total de reportes emitidos: {len(st.session_state['historial_auditoria'])}"
-    )
-
-    for i, item in enumerate(
-        reversed(st.session_state["historial_auditoria"])
-    ):
-      with st.expander(
-          f"📄 Reporte #{len(st.session_state['historial_auditoria']) - i} -"
-          f" {item['edificio']} ({item['fecha']})"
-      ):
-        st.markdown(f"**🏢 Objetivo:** {item['edificio']}")
-        st.markdown(f"**📅 Fecha y Hora:** {item['fecha']}")
-        st.markdown(f"**✍️ Responsable / Firma:** {item['firmante']}")
-        st.markdown(f"**🌡️ Clima registrado:** {item['clima']}")
-        st.markdown(
-            f"**📷 Archivos fotográficos adjuntos:** {item['fotos_adjuntas']}"
-        )
-
-
-# ==========================================
-# SOLAPA 4: ADMINISTRADOR DE USUARIOS
-# ==========================================
-elif menu == "4️⃣ Administrador de Usuarios":
-  st.header("👤 Panel de Administracion de Usuarios")
-  st.markdown(
-      "Agregue o elimine operadores con acceso autorizado al sistema."
-  )
-
-  st.subheader("Operadores Habilitados")
-  for user in st.session_state["usuarios_db"]:
-    col1, col2 = st.columns([3, 1])
-    with col1:
-      st.text(f"👤 {user}")
-    with col2:
-      if st.button("🗑️ Borrar", key=f"del_{user}"):
-        st.session_state["usuarios_db"].remove(user)
-        st.rerun()
-
-  st.divider()
-
-  st.subheader("Registrar Nuevo Operador")
-  with st.form("agregar_usuario_form"):
-    nuevo_usr = st.text_input("Nombre de Usuario / Legajo")
-    btn_agregar = st.form_submit_button("Dar de Alta Usuario")
-
-    if btn_agregar and nuevo_usr:
-      if nuevo_usr not in st.session_state["usuarios_db"]:
-        st.session_state["usuarios_db"].append(nuevo_usr)
-        st.success(f"Usuario '{nuevo_usr}' agregado con éxito.")
-        st.rerun()
-      else:
-        st.error("El usuario ya existe en el sistema.")
+      pdf.set_text_color(24, 4 
