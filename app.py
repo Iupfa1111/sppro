@@ -311,7 +311,6 @@ if menu == "1️⃣ Verificacion de Edificios":
     st.session_state["activo_nombre"] = edificio_elegido
     st.session_state["activo_datos"] = info
     st.session_state["activo_clima"] = obtener_clima()
-    # Limpiar fotos previas al cambiar de edificio
     st.session_state["fotos_cargadas"] = []
 
   if "activo_nombre" in st.session_state:
@@ -326,7 +325,6 @@ if menu == "1️⃣ Verificacion de Edificios":
       st.markdown(f"**📏 Altura Catastral:** {dat['alt']}")
     with col2:
       st.markdown(f"**🚪 Entradas y Salidas:** {dat['acc']}")
-      # Punto 2: Enlace interactivo a Google Maps
       link_maps = f"https://www.google.com/maps/search/?api=1&query={dat['coords'].replace(' ', '')}"
       st.markdown(
           f"**🌐 Coordenadas GPS:** [{dat['coords']}]({link_maps}) *(Hacer clic"
@@ -336,7 +334,6 @@ if menu == "1️⃣ Verificacion de Edificios":
 
     st.markdown("---")
     st.subheader("📷 Carga y Previsualización de Evidencia Fotográfica")
-    # Punto 3: Almacenamiento y previsualización de imágenes
     archivos_subidos = st.file_uploader(
         "Adjuntar registros fotográficos",
         type=["png", "jpg", "jpeg"],
@@ -397,7 +394,6 @@ elif menu == "2️⃣ Generacion de PDF":
       pdf = FPDF()
       pdf.add_page()
 
-      # Encabezado con diseño azul corporativo
       pdf.set_fill_color(24, 43, 73)
       pdf.rect(0, 0, 210, 25, "F")
       pdf.set_font("Arial", "B", 13)
@@ -433,7 +429,6 @@ elif menu == "2️⃣ Generacion de PDF":
       )
       pdf.ln(5)
 
-      # Sección: Datos del Edificio
       pdf.set_font("Arial", "B", 11)
       pdf.set_text_color(24, 43, 73)
       pdf.cell(
@@ -481,7 +476,6 @@ elif menu == "2️⃣ Generacion de PDF":
       )
       pdf.ln(5)
 
-      # Sección: Puntos Seguros
       pdf.set_font("Arial", "B", 11)
       pdf.set_text_color(24, 43, 73)
       pdf.cell(
@@ -530,7 +524,6 @@ elif menu == "2️⃣ Generacion de PDF":
       )
       pdf.ln(15)
 
-      # Bloque de Firma Digital
       pdf.set_font("Arial", "B", 10)
       pdf.set_text_color(24, 43, 73)
       pdf.cell(
@@ -564,7 +557,6 @@ elif menu == "2️⃣ Generacion de PDF":
       archivo_pdf = "sppro_verificacion_evento.pdf"
       pdf.output(archivo_pdf)
 
-      # Punto 1: Guardar en el historial de auditoría al generar con éxito
       registro_auditoria = {
           "fecha": fecha_hora_actual,
           "edificio": nom,
@@ -661,4 +653,4 @@ elif menu == "4️⃣ Administrador de Usuarios":
         st.success(f"Usuario '{nuevo_usr}' agregado con éxito.")
         st.rerun()
       else:
-        st.error("El usuario ya 
+        st.error("El usuario ya existe en el sistema.")
