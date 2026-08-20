@@ -98,7 +98,7 @@ class PDFReporte(FPDF):
         self.set_text_color(0, 51, 102)
         self.cell(0, 10, limpiar_texto("SPPRO"), ln=True, align="C")
         self.set_font("Arial", "B", 12)
-        self.cell(0, 6, limpiar_texto("Informe de Verificacion"), ln=True, align="C")
+        self.cell(0, 6, limpiar_texto("Informe de Verificacion de Edificio"), ln=True, align="C")
         self.line(10, 25, 200, 25)
         self.ln(10)
 
@@ -158,7 +158,7 @@ if not st.session_state["logged_in"]:
 st.sidebar.title(f"SPPRO | {st.session_state['username']}")
 st.sidebar.caption(f"Rol: {st.session_state['user_role']}")
 
-menu_items = ["Verificacion de Objetivos", "Puntos de Apoyo", "Clima"]
+menu_items = ["Verificación de Edificios", "Puntos de Apoyo", "Clima"]
 if st.session_state["user_role"] == "Administrador":
     menu_items.append("Gestion de Usuarios")
 
@@ -173,258 +173,215 @@ st.sidebar.markdown("---")
 st.sidebar.write("SPPRO by Angel Ibanez")
 
 # ==========================================
-# SECCIÓN 1: VERIFICACIÓN DE OBJETIVOS
+# SECCIÓN 1: VERIFICACIÓN DE EDIFICIOS
 # ==========================================
-if seccion == "Verificacion de Objetivos":
-    st.header("Verificacion de Objetivos")
+if seccion == "Verificación de Edificios":
+    st.header("Verificación de Edificios")
     
-    tab_list, tab_new = st.tabs(["Consultar / Historial", "Nuevo Objetivo"])
+    tab_verif, tab_hist = st.tabs(["Verificar Objetivo", "Historial de Objetivos"])
     
-    with tab_new:
-        st.subheader("Registrar Nuevo Objetivo")
+    with tab_verif:
+        st.subheader("Selección de Objetivo")
         
-        # Diccionario de edificios famosos de CABA para autocompletar
+        # Diccionario de 30 edificios de CABA
         edificios_caba = {
-            "Personalizado (Ingresar a mano)": {"dir": "", "tipo": "Edificio", "altura": ""},
-            "Casa Rosada": {"dir": "Balcarce 50", "tipo": "Organismo publico", "altura": "50"},
+            "Seleccione un edificio emblemático...": {"dir": "", "tipo": "Edificio", "altura": ""},
+            "Casa Rosada": {"dir": "Balcarce 50", "tipo": "Organismo público", "altura": "50"},
             "Edificio Kavanagh": {"dir": "Florida 1065", "tipo": "Edificio", "altura": "1065"},
             "Palacio Estrugamou": {"dir": "Esmeralda y Juncal", "tipo": "Edificio", "altura": "S/N"},
-            "Galeria Guemes": {"dir": "Florida 165", "tipo": "Comercio", "altura": "165"},
-            "Centro Cultural Kirchner (CCK)": {"dir": "Sarmiento 151", "tipo": "Organismo publico", "altura": "151"},
-            "Catedral Metropolitana": {"dir": "San Martin 27", "tipo": "Institucion", "altura": "27"},
-            "Cabildo de Buenos Aires": {"dir": "Bolivar 65", "tipo": "Institucion", "altura": "65"},
-            "Torre Monumental (Torre de los Ingleses)": {"dir": "Av. Dr. Jose Maria Ramos Mejia 1315", "tipo": "Edificio", "altura": "1315"},
+            "Galería Güemes": {"dir": "Florida 165", "tipo": "Comercio", "altura": "165"},
+            "Centro Cultural Kirchner (CCK)": {"dir": "Sarmiento 151", "tipo": "Organismo público", "altura": "151"},
+            "Catedral Metropolitana": {"dir": "San Martín 27", "tipo": "Institución", "altura": "27"},
+            "Cabildo de Buenos Aires": {"dir": "Bolívar 65", "tipo": "Institución", "altura": "65"},
+            "Torre Monumental (Torre de los Ingleses)": {"dir": "Av. Dr. José María Ramos Mejía 1315", "tipo": "Edificio", "altura": "1315"},
             "Edificio Comega": {"dir": "Av. Corrientes 222", "tipo": "Edificio", "altura": "222"},
             "Edificio Safico": {"dir": "Av. Corrientes 456", "tipo": "Edificio", "altura": "456"},
             "Banco de Boston": {"dir": "Diagonal Norte y Florida", "tipo": "Edificio", "altura": "S/N"},
-            "Centro Naval": {"dir": "Florida y Cordoba", "tipo": "Institucion", "altura": "S/N"},
+            "Centro Naval": {"dir": "Florida y Córdoba", "tipo": "Institución", "altura": "S/N"},
             "Palacio Barolo": {"dir": "Av. de Mayo 1370", "tipo": "Edificio", "altura": "1370"},
-            "Congreso de la Nacion Argentina": {"dir": "Av. Entre Rios 179", "tipo": "Organismo publico", "altura": "179"},
-            "Cafe Tortoni": {"dir": "Av. de Mayo 825", "tipo": "Comercio", "altura": "825"},
-            "Manzana de las Luces": {"dir": "Venezuela 469", "tipo": "Institucion", "altura": "469"},
-            "Libreria de Avila": {"dir": "Alsina 500", "tipo": "Comercio", "altura": "500"},
-            "Teatro Colon": {"dir": "Cerrito 628", "tipo": "Institucion", "altura": "628"},
-            "Tribunales Federales": {"dir": "Talcahuano 550", "tipo": "Organismo publico", "altura": "550"},
-            "Palacio de Aguas Corrientes": {"dir": "Av. Cordoba 1950", "tipo": "Edificio", "altura": "1950"},
+            "Congreso de la Nación Argentina": {"dir": "Av. Entre Ríos 179", "tipo": "Organismo público", "altura": "179"},
+            "Café Tortoni": {"dir": "Av. de Mayo 825", "tipo": "Comercio", "altura": "825"},
+            "Manzana de las Luces": {"dir": "Venezuela 469", "tipo": "Institución", "altura": "469"},
+            "Librería de Ávila": {"dir": "Alsina 500", "tipo": "Comercio", "altura": "500"},
+            "Teatro Colón": {"dir": "Cerrito 628", "tipo": "Institución", "altura": "628"},
+            "Tribunales Federales": {"dir": "Talcahuano 550", "tipo": "Organismo público", "altura": "550"},
+            "Palacio de Aguas Corrientes": {"dir": "Av. Córdoba 1950", "tipo": "Edificio", "altura": "1950"},
             "El Ateneo Grand Splendid": {"dir": "Av. Santa Fe 1860", "tipo": "Comercio", "altura": "1860"},
             "Palacio Duhau": {"dir": "Av. Alvear 1661", "tipo": "Hotel", "altura": "1661"},
-            "Cementerio de La Recoleta": {"dir": "Junin 1760", "tipo": "Institucion", "altura": "1760"},
-            "Palacio Pereda (Embajada de Brasil)": {"dir": "Arroyo 1130", "tipo": "Institucion", "altura": "1130"},
-            "Usina del Arte": {"dir": "Caffarena 1", "tipo": "Institucion", "altura": "1"},
-            "Hipodromo de Palermo": {"dir": "Av. del Libertador 4101", "tipo": "Comercio", "altura": "4101"},
-            "Facultad de Derecho (UBA)": {"dir": "Av. Figueroa Alcorta 2263", "tipo": "Institucion", "altura": "2263"},
-            "Jardin Botanico Carlos Thays": {"dir": "Av. Santa Fe 3951", "tipo": "Institucion", "altura": "3951"},
-            "Museo Nacional de Bellas Artes": {"dir": "Av. Del Libertador 1473", "tipo": "Institucion", "altura": "1473"},
-            "Estadio Monumental (River Plate)": {"dir": "Av. Figueroa Alcorta 7597", "tipo": "Institucion", "altura": "7597"}
+            "Cementerio de La Recoleta": {"dir": "Junín 1760", "tipo": "Institución", "altura": "1760"},
+            "Palacio Pereda (Embajada de Brasil)": {"dir": "Arroyo 1130", "tipo": "Institución", "altura": "1130"},
+            "Usina del Arte": {"dir": "Caffarena 1", "tipo": "Institución", "altura": "1"},
+            "Hipódromo de Palermo": {"dir": "Av. del Libertador 4101", "tipo": "Comercio", "altura": "4101"},
+            "Facultad de Derecho (UBA)": {"dir": "Av. Figueroa Alcorta 2263", "tipo": "Institución", "altura": "2263"},
+            "Jardín Botánico Carlos Thays": {"dir": "Av. Santa Fe 3951", "tipo": "Institución", "altura": "3951"},
+            "Museo Nacional de Bellas Artes": {"dir": "Av. Del Libertador 1473", "tipo": "Institución", "altura": "1473"},
+            "Estadio Monumental (River Plate)": {"dir": "Av. Figueroa Alcorta 7597", "tipo": "Institución", "altura": "7597"}
         }
 
-        seleccion_rapida = st.selectbox("Seleccion rapida de Edificios Emblematicos CABA (o ingrese manual abajo):", list(edificios_caba.keys()))
+        # 1. Selección rápida de CABA
+        edificio_seleccionado = st.selectbox("1. Selección rápida de Edificios Emblemáticos CABA:", list(edificios_caba.keys()))
         
-        datos_sugeridos = edificios_caba[seleccion_rapida]
+        datos_sugeridos = edificios_caba[edificio_seleccionado] if edificio_seleccionado != "Seleccione un edificio emblemático..." else {"dir": "", "tipo": "Edificio", "altura": ""}
 
-        with st.form("form_nuevo_objetivo"):
-            if seleccion_rapida != "Personalizado (Ingresar a mano)":
-                nombre = st.text_input("Nombre del objetivo *", value=seleccion_rapida)
-                tipo = st.selectbox("Tipo de objetivo", ["Edificio", "Hotel", "Empresa", "Comercio", "Organismo publico", "Institucion", "Otro"], index=["Edificio", "Hotel", "Empresa", "Comercio", "Organismo publico", "Institucion", "Otro"].index(datos_sugeridos["tipo"]) if datos_sugeridos["tipo"] in ["Edificio", "Hotel", "Empresa", "Comercio", "Organismo publico", "Institucion", "Otro"] else 0)
-                direccion = st.text_input("Direccion *", value=datos_sugeridos["dir"])
-                altura = st.text_input("Altura catastral", value=datos_sugeridos["altura"])
-            else:
-                nombre = st.text_input("Nombre del objetivo *")
-                tipo = st.selectbox("Tipo de objetivo", ["Edificio", "Hotel", "Empresa", "Comercio", "Organismo publico", "Institucion", "Otro"])
-                direccion = st.text_input("Direccion * (ej. Av. Corrientes 1234)")
-                altura = st.text_input("Altura catastral")
+        st.divider()
+
+        # 2. Parte personalizada
+        st.subheader("2. Datos Personalizados / Edición del Objetivo")
+        with st.form("form_verificacion_objetivo"):
+            nombre_input = st.text_input("Nombre del objetivo *", value="" if edificio_seleccionado == "Seleccione un edificio emblemático..." else edificio_seleccionado)
+            tipo_input = st.selectbox("Tipo de objetivo", ["Edificio", "Hotel", "Empresa", "Comercio", "Organismo público", "Institución", "Otro"])
+            direccion_input = st.text_input("Dirección *", value=datos_sugeridos["dir"])
+            altura_input = st.text_input("Altura catastral", value=datos_sugeridos["altura"])
             
             col_c1, col_c2 = st.columns(2)
             with col_c1:
-                latitud = st.number_input("Latitud (Manual)", format="%.6f", value=0.0)
+                lat_input = st.number_input("Latitud", format="%.6f", value=0.0)
             with col_c2:
-                longitud = st.number_input("Longitud (Manual)", format="%.6f", value=0.0)
+                lon_input = st.number_input("Longitud", format="%.6f", value=0.0)
                 
             col_p1, col_p2 = st.columns(2)
             with col_p1:
-                pisos = st.number_input("Cantidad de pisos", min_value=0, value=1)
+                pisos_input = st.number_input("Cantidad de pisos", min_value=0, value=1)
             with col_p2:
-                subsuelos = st.number_input("Cantidad de subsuelos", min_value=0, value=0)
+                sub_input = st.number_input("Cantidad de subsuelos", min_value=0, value=0)
                 
-            horario = st.text_input("Horario de funcionamiento")
-            observaciones = st.text_area("Observaciones generales")
+            horario_input = st.text_input("Horario de funcionamiento")
+            obs_input = st.text_area("Observaciones de seguridad")
             
-            submitted = st.form_submit_button("Guardar Objetivo")
-            if submitted:
-                if nombre and direccion:
-                    conn = sqlite3.connect("sppro.db")
-                    cursor = conn.cursor()
-                    cursor.execute("""
-                        INSERT INTO edificios (nombre, tipo, direccion, altura, latitud, longitud, pisos, subsuelos, horario, observaciones)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (nombre, tipo, direccion, altura, latitud, longitud, pisos, subsuelos, horario, observaciones))
-                    conn.commit()
-                    conn.close()
-                    st.success("Objetivo registrado exitosamente.")
-                else:
-                    st.error("El nombre y la direccion son obligatorios.")
+            st.divider()
+            
+            # 3. Botón de Verificación
+            btn_verificar = st.form_submit_button("Verificar Objetivo y Consultar Entorno", use_container_width=True)
 
-    with tab_list:
-        st.subheader("Consultar Objetivos Registrados")
+        # Si se apretó el botón de verificación, guardamos y mostramos los resultados abajo
+        if btn_verificar:
+            if nombre_input and direccion_input:
+                conn = sqlite3.connect("sppro.db")
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO edificios (nombre, tipo, direccion, altura, latitud, longitud, pisos, subsuelos, horario, observaciones)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (nombre_input, tipo_input, direccion_input, altura_input, lat_input, lon_input, pisos_input, sub_input, horario_input, obs_input))
+                conn.commit()
+                cursor.execute("SELECT last_insert_rowid()")
+                nuevo_id = cursor.fetchone()[0]
+                conn.close()
+                
+                st.success(f"¡Objetivo '{nombre_input}' verificado y registrado con éxito!")
+                st.session_state["objetivo_activo_id"] = nuevo_id
+            else:
+                st.error("El nombre y la dirección son obligatorios para realizar la verificación.")
+
+        # Si hay un objetivo verificado activo en la sesión, mostramos Puntos de Apoyo, Clima y Generador de PDF
+        if "objetivo_activo_id" in st.session_state:
+            act_id = st.session_state["objetivo_activo_id"]
+            
+            conn = sqlite3.connect("sppro.db")
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM edificios WHERE id = ?", (act_id,))
+            obj_row = cursor.fetchone()
+            conn.close()
+
+            if obj_row:
+                st.markdown("---")
+                st.info(f"📋 *Resultado de la Verificación para:* {obj_row[1]} ({obj_row[3]})")
+
+                # Mostrar Puntos de Apoyo
+                st.subheader("Puntos de Apoyo Cercanos / Disponibles")
+                conn_p = sqlite3.connect("sppro.db")
+                df_pa = pd.read_sql("SELECT tipo, nombre, direccion, observaciones FROM puntos_apoyo", conn_p)
+                conn_p.close()
+                
+                if not df_pa.empty:
+                    st.dataframe(df_pa, use_container_width=True)
+                else:
+                    st.warning("No hay puntos de apoyo cargados en el sistema actualmente.")
+
+                # Mostrar Clima
+                st.subheader("Condiciones Meteorológicas Actuales")
+                datos_clima = clima.obtener_clima()
+                if datos_clima:
+                    cl1, cl2, cl3 = st.columns(3)
+                    with cl1:
+                        st.metric("Temperatura", datos_clima["temperatura"])
+                        st.metric("Cielo", datos_clima["estado"])
+                    with cl2:
+                        st.metric("Viento", datos_clima["viento"])
+                        st.metric("Humedad", datos_clima["humedad"])
+                    with cl3:
+                        st.metric("Presión", datos_clima["presion"])
+                else:
+                    st.warning("Información meteorológica no disponible.")
+
+                st.markdown("---")
+
+                # Botón para generar el PDF
+                st.subheader("Generación de Informe")
+                if st.button("Generar y Descargar PDF del Objetivo", type="primary", use_container_width=True):
+                    pdf = PDFReporte()
+                    pdf.add_page()
+                    pdf.set_font("Arial", "B", 12)
+                    pdf.set_text_color(0, 51, 102)
+                    
+                    pdf.cell(0, 8, limpiar_texto("IDENTIFICACION DEL OBJETIVO"), ln=True)
+                    pdf.set_font("Arial", "", 10)
+                    pdf.set_text_color(0, 0, 0)
+                    pdf.cell(0, 6, limpiar_texto(f"Nombre: {obj_row[1]}"), ln=True)
+                    pdf.cell(0, 6, limpiar_texto(f"Tipo: {obj_row[2]}"), ln=True)
+                    pdf.cell(0, 6, limpiar_texto(f"Direccion: {obj_row[3]} (Altura: {obj_row[4]})"), ln=True)
+                    pdf.cell(0, 6, limpiar_texto(f"Coordenadas: Lat: {obj_row[5]}, Lon: {obj_row[6]}"), ln=True)
+                    pdf.cell(0, 6, limpiar_texto(f"Pisos: {obj_row[7]} | Subsuelos: {obj_row[8]}"), ln=True)
+                    pdf.cell(0, 6, limpiar_texto(f"Horario: {obj_row[9]}"), ln=True)
+                    pdf.ln(4)
+                    
+                    pdf.set_font("Arial", "B", 12)
+                    pdf.set_text_color(0, 51, 102)
+                    pdf.cell(0, 8, limpiar_texto("CONDICIONES METEOROLOGICAS"), ln=True)
+                    pdf.set_font("Arial", "", 10)
+                    pdf.set_text_color(0, 0, 0)
+                    if datos_clima:
+                        pdf.cell(0, 6, limpiar_texto(f"Temperatura: {datos_clima['temperatura']} | Estado: {datos_clima['estado']}"), ln=True)
+                        pdf.cell(0, 6, limpiar_texto(f"Viento: {datos_clima['viento']} | Humedad: {datos_clima['humedad']} | Presion: {datos_clima['presion']}"), ln=True)
+                    else:
+                        pdf.cell(0, 6, limpiar_texto("Informacion meteorologica no disponible."), ln=True)
+                    pdf.ln(4)
+
+                    if not df_pa.empty:
+                        pdf.set_font("Arial", "B", 12)
+                        pdf.set_text_color(0, 51, 102)
+                        pdf.cell(0, 8, limpiar_texto("PUNTOS DE APOYO"), ln=True)
+                        pdf.set_font("Arial", "", 10)
+                        pdf.set_text_color(0, 0, 0)
+                        for _, row_pa in df_pa.iterrows():
+                            pdf.cell(0, 6, limpiar_texto(f"[{row_pa['tipo']}] {row_pa['nombre']} - {row_pa['direccion']} ({row_pa['observaciones']})"), ln=True)
+                        pdf.ln(4)
+
+                    if obj_row[10]:
+                        pdf.set_font("Arial", "B", 12)
+                        pdf.set_text_color(0, 51, 102)
+                        pdf.cell(0, 8, limpiar_texto("OBSERVACIONES"), ln=True)
+                        pdf.set_font("Arial", "", 10)
+                        pdf.set_text_color(0, 0, 0)
+                        pdf.multi_cell(0, 6, limpiar_texto(obj_row[10]))
+
+                    pdf_bytes = pdf.output(dest="S").encode("latin-1")
+                    st.download_button(
+                        label="Descargar Archivo PDF Final",
+                        data=pdf_bytes,
+                        file_name=f"Informe_SPPRO_{obj_row[1].replace(' ', '_')}.pdf",
+                        mime="application/pdf"
+                    )
+
+    with tab_hist:
+        st.subheader("Historial de Edificios Verificados")
         conn = sqlite3.connect("sppro.db")
         df_edificios = pd.read_sql("SELECT * FROM edificios", conn)
         conn.close()
         
         if df_edificios.empty:
-            st.info("No hay objetivos registrados en el sistema. Utilice la pestaña 'Nuevo Objetivo' para registrar el primero.")
+            st.info("No hay objetivos registrados todavía.")
         else:
-            for idx, row in df_edificios.iterrows():
-                edf_id = row["id"]
-                with st.expander(f"{row['nombre']} ({row['tipo'] or 'General'}) - {row['direccion']}"):
-                    st.write(f"*Direccion:* {row['direccion']} | *Altura:* {row['altura']}")
-                    st.write(f"*Coordenadas:* Lat: {row['latitud']}, Lon: {row['longitud']}")
-                    st.write(f"*Pisos:* {row['pisos']} | *Subsuelos:* {row['subsuelos']} | *Horario:* {row['horario']}")
-                    st.write(f"*Observaciones:* {row['observaciones']}")
-                    
-                    conn = sqlite3.connect("sppro.db")
-                    c = conn.cursor()
-                    c.execute("SELECT archivo, descripcion FROM fotografias WHERE edificio_id = ?", (edf_id,))
-                    fotos = c.fetchall()
-                    c.execute("SELECT ubicacion, observacion FROM camaras WHERE edificio_id = ?", (edf_id,))
-                    camaras = c.fetchall()
-                    conn.close()
-                    
-                    st.markdown("---")
-                    st.write(f"Fotografias registradas: {len(fotos)} | Camaras registradas: {len(camaras)}")
-                    
-                    with st.form(f"form_foto_{edf_id}"):
-                        st.markdown("### Agregar Fotografia")
-                        desc_foto = st.text_input("Descripcion de la fotografia", key=f"desc_{edf_id}")
-                        archivo_subido = st.file_uploader("Seleccionar imagen", type=["jpg", "jpeg", "png"], key=f"file_{edf_id}")
-                        btn_subir_foto = st.form_submit_button("Guardar Fotografia")
-                        
-                        if btn_subir_foto and archivo_subido:
-                            dir_fotos = f"fotos/edificio_{edf_id}"
-                            os.makedirs(dir_fotos, exist_ok=True)
-                            ruta_archivo = os.path.join(dir_fotos, archivo_subido.name)
-                            with open(ruta_archivo, "wb") as f:
-                                f.write(archivo_subido.getbuffer())
-                                
-                            conn = sqlite3.connect("sppro.db")
-                            cursor = conn.cursor()
-                            cursor.execute("INSERT INTO fotografias (edificio_id, archivo, descripcion, usuario, fecha) VALUES (?, ?, ?, ?, ?)",
-                                           (edf_id, ruta_archivo, desc_foto or "Sin descripcion", st.session_state["username"], datetime.datetime.now().strftime("%Y-%m-%d %H:%M")))
-                            conn.commit()
-                            conn.close()
-                            st.success("Fotografia guardada.")
-                            st.rerun()
-
-                    with st.form(f"form_cam_{edf_id}"):
-                        st.markdown("### Registrar Camara")
-                        ubicacion_cam = st.text_input("Ubicacion de la camara", key=f"ucam_{edf_id}")
-                        obs_cam = st.text_input("Observacion", key=f"ocam_{edf_id}")
-                        btn_cam = st.form_submit_button("Guardar Camara")
-                        
-                        if btn_cam and ubicacion_cam:
-                            conn = sqlite3.connect("sppro.db")
-                            cursor = conn.cursor()
-                            cursor.execute("INSERT INTO camaras (edificio_id, ubicacion, observacion) VALUES (?, ?, ?)",
-                                           (edf_id, ubicacion_cam, obs_cam))
-                            conn.commit()
-                            conn.close()
-                            st.success("Camara registrada.")
-                            st.rerun()
-
-                    st.markdown("### Generar Informe PDF")
-                    fotos_seleccionadas = []
-                    if fotos:
-                        st.markdown("Seleccione fotografias para incluir en el informe:")
-                        for foto in fotos:
-                            ruta_f, desc_f = foto[0], foto[1]
-                            if st.checkbox(f"{desc_f} ({os.path.basename(ruta_f)})", value=True, key=f"chk_f_{edf_id}_{ruta_f}"):
-                                fotos_seleccionadas.append(foto)
-                                
-                    if st.button("Descargar PDF de este Objetivo", key=f"pdf_{edf_id}"):
-                        pdf = PDFReporte()
-                        pdf.add_page()
-                        pdf.set_font("Arial", "B", 12)
-                        pdf.set_text_color(0, 51, 102)
-                        
-                        pdf.cell(0, 8, limpiar_texto("IDENTIFICACION DEL OBJETIVO"), ln=True)
-                        pdf.set_font("Arial", "", 10)
-                        pdf.set_text_color(0, 0, 0)
-                        pdf.cell(0, 6, limpiar_texto(f"Nombre: {row['nombre']}"), ln=True)
-                        pdf.cell(0, 6, limpiar_texto(f"Tipo: {row['tipo']}"), ln=True)
-                        pdf.cell(0, 6, limpiar_texto(f"Direccion: {row['direccion']} (Altura: {row['altura']})"), ln=True)
-                        pdf.cell(0, 6, limpiar_texto(f"Coordenadas: Lat: {row['latitud']}, Lon: {row['longitud']}"), ln=True)
-                        pdf.cell(0, 6, limpiar_texto(f"Pisos: {row['pisos']} | Subsuelos: {row['subsuelos']}"), ln=True)
-                        pdf.cell(0, 6, limpiar_texto(f"Horario: {row['horario']}"), ln=True)
-                        pdf.ln(4)
-                        
-                        pdf.set_font("Arial", "B", 12)
-                        pdf.set_text_color(0, 51, 102)
-                        pdf.cell(0, 8, limpiar_texto("CONDICIONES METEOROLOGICAS"), ln=True)
-                        pdf.set_font("Arial", "", 10)
-                        pdf.set_text_color(0, 0, 0)
-                        clima_actual = clima.obtener_clima()
-                        if clima_actual:
-                            pdf.cell(0, 6, limpiar_texto(f"Temperatura: {clima_actual['temperatura']} | Estado: {clima_actual['estado']}"), ln=True)
-                            pdf.cell(0, 6, limpiar_texto(f"Viento: {clima_actual['viento']} | Humedad: {clima_actual['humedad']} | Presion: {clima_actual['presion']}"), ln=True)
-                        else:
-                            pdf.cell(0, 6, limpiar_texto("Informacion meteorologica no disponible."), ln=True)
-                        pdf.ln(4)
-
-                        if camaras:
-                            pdf.set_font("Arial", "B", 12)
-                            pdf.set_text_color(0, 51, 102)
-                            pdf.cell(0, 8, limpiar_texto("CAMARAS OBSERVADAS"), ln=True)
-                            pdf.set_font("Arial", "", 10)
-                            pdf.set_text_color(0, 0, 0)
-                            for idx_c, cam in enumerate(camaras, 1):
-                                pdf.cell(0, 6, limpiar_texto(f"Camara {idx_c:02d} - Ubicacion: {cam[0]} | Observacion: {cam[1]}"), ln=True)
-                            pdf.ln(4)
-
-                        conn_p = sqlite3.connect("sppro.db")
-                        puntos_db = pd.read_sql("SELECT * FROM puntos_apoyo", conn_p).values.tolist()
-                        conn_p.close()
-                        if puntos_db:
-                            pdf.set_font("Arial", "B", 12)
-                            pdf.set_text_color(0, 51, 102)
-                            pdf.cell(0, 8, limpiar_texto("PUNTOS DE APOYO"), ln=True)
-                            pdf.set_font("Arial", "", 10)
-                            pdf.set_text_color(0, 0, 0)
-                            for pt in puntos_db:
-                                pdf.cell(0, 6, limpiar_texto(f"[{pt[2]}] {pt[1]} - {pt[3]} ({pt[4]})"), ln=True)
-                            pdf.ln(4)
-
-                        if fotos_seleccionadas:
-                            pdf.set_font("Arial", "B", 12)
-                            pdf.set_text_color(0, 51, 102)
-                            pdf.cell(0, 8, limpiar_texto("REGISTRO FOTOGRAFICO"), ln=True)
-                            pdf.set_font("Arial", "", 10)
-                            pdf.set_text_color(0, 0, 0)
-                            for foto in fotos_seleccionadas:
-                                ruta_f, desc_f = foto[0], foto[1]
-                                if os.path.exists(ruta_f):
-                                    pdf.cell(0, 6, limpiar_texto(f"Foto: {desc_f}"), ln=True)
-                                    try:
-                                        pdf.image(ruta_f, w=80)
-                                        pdf.ln(4)
-                                    except:
-                                        pass
-                            pdf.ln(4)
-
-                        if row["observaciones"]:
-                            pdf.set_font("Arial", "B", 12)
-                            pdf.set_text_color(0, 51, 102)
-                            pdf.cell(0, 8, limpiar_texto("OBSERVACIONES"), ln=True)
-                            pdf.set_font("Arial", "", 10)
-                            pdf.set_text_color(0, 0, 0)
-                            pdf.multi_cell(0, 6, limpiar_texto(row["observaciones"]))
-
-                        pdf_bytes = pdf.output(dest="S").encode("latin-1")
-                        st.download_button(
-                            label=f"Descargar PDF - {row['nombre']}",
-                            data=pdf_bytes,
-                            file_name=f"Informe_SPPRO_{row['nombre'].replace(' ', '_')}.pdf",
-                            mime="application/pdf",
-                            key=f"dl_final_{edf_id}"
-                        )
+            st.dataframe(df_edificios, use_container_width=True)
 
 # ==========================================
 # SECCIÓN 2: PUNTOS DE APOYO
@@ -437,8 +394,8 @@ elif seccion == "Puntos de Apoyo":
     with tab_p2:
         with st.form("form_punto_apoyo"):
             nombre_pa = st.text_input("Nombre")
-            tipo_pa = st.selectbox("Categoria", ["Hospitales", "Comisarias", "Bomberos", "Defensa Civil", "Otros"])
-            dir_pa = st.text_input("Direccion")
+            tipo_pa = st.selectbox("Categoría", ["Hospitales", "Comisarías", "Bomberos", "Defensa Civil", "Otros"])
+            dir_pa = st.text_input("Dirección")
             obs_pa = st.text_area("Observaciones")
             
             if st.form_submit_button("Guardar Punto de Apoyo"):
@@ -449,7 +406,7 @@ elif seccion == "Puntos de Apoyo":
                               (nombre_pa, tipo_pa, dir_pa, obs_pa))
                     conn.commit()
                     conn.close()
-                    st.success("Punto de apoyo registrado.")
+                    st.success("Punto de apoyo registrado con éxito.")
                 else:
                     st.error("El nombre es obligatorio.")
                     
@@ -467,7 +424,7 @@ elif seccion == "Puntos de Apoyo":
 # SECCIÓN 3: CLIMA
 # ==========================================
 elif seccion == "Clima":
-    st.header("Condiciones Meteorologicas")
+    st.header("Condiciones Meteorológicas")
     datos_clima = clima.obtener_clima()
     
     if datos_clima:
@@ -479,10 +436,10 @@ elif seccion == "Clima":
             st.metric("Viento", datos_clima["viento"])
             st.metric("Humedad", datos_clima["humedad"])
         with col3:
-            st.metric("Presion", datos_clima["presion"])
-        st.caption(f"Ultima actualizacion: {datos_clima['actualizacion']}")
+            st.metric("Presión", datos_clima["presion"])
+        st.caption(f"Última actualización: {datos_clima['actualizacion']}")
     else:
-        st.warning("Informacion meteorologica no disponible.")
+        st.warning("Información meteorológica no disponible.")
 
 # ==========================================
 # SECCIÓN 4: GESTIÓN DE USUARIOS
