@@ -211,21 +211,45 @@ def obtener_clima():
         timeout=3,
     )
     temp = r.json()["current"]["temperature_2m"]
-    return f"{temp}°C"
+    return f"{temp}C"
   except:
     return "No disponible"
 
 
-# --- NAVEGACIÓN LATERAL (SOLAPAS) ---
+# Función para limpiar tildes y evitar errores en FPDF básico
+def limpiar_texto(texto):
+  if not isinstance(texto, str):
+    return str(texto)
+  reemplazos = {
+      "á": "a",
+      "é": "e",
+      "í": "i",
+      "ó": "o",
+      "ú": "u",
+      "Á": "A",
+      "É": "E",
+      "Í": "I",
+      "Ó": "O",
+      "Ú": "U",
+      "ñ": "n",
+      "Ñ": "N",
+      "°": " deg ",
+  }
+  for k, v in reemplazos.items():
+    texto = texto.replace(k, v)
+  return texto
+
+
+# --- NAVEGACIÓN LATERAL ---
 with st.sidebar:
   st.title("🛡️ SPPRO v3.5")
   st.markdown("Seguridad Patrimonial CABA")
   st.divider()
   menu = st.radio(
-      "Navegación",
+      "Navegacion",
       [
-          "1️⃣ Verificación de Edificios",
-          "2️⃣ Generación de PDF",
+          "1️⃣ Verificacion de Edificios",
+          "2️⃣ Generacion de PDF",
           "3️⃣ Administrador de Usuarios",
       ],
   )
@@ -236,23 +260,22 @@ with st.sidebar:
 # ==========================================
 # SOLAPA 1: VERIFICACIÓN DE EDIFICIOS
 # ==========================================
-if menu == "1️⃣ Verificación de Edificios":
-  st.header("🏢 Control y Verificación de Edificios")
+if menu == "1️⃣ Verificacion de Edificios":
+  st.header("🏢 Control y Verificacion de Edificios")
   st.metric("🌡️ Clima Actual en CABA", obtener_clima())
   st.divider()
 
-  # Sección para agregar nuevos edificios
   with st.expander("➕ Agregar un Edificio Nuevo a la Base"):
     with st.form("nuevo_edificio_form"):
       n_nombre = st.text_input("Nombre del Edificio / Sitio")
-      n_dir = st.text_input("Dirección Exacta")
+      n_dir = st.text_input("Direccion Exacta")
       n_alt = st.text_input("Altura Catastral (Ej. 45 m)")
       n_acc = st.text_input("Entradas y Salidas (Ej. Principal / Carga)")
       n_coords = st.text_input("Coordenadas GPS (Ej. -34.60, -58.38)")
       btn_guardar_nuevo = st.form_submit_button("Guardar Nuevo Edificio")
 
       if btn_guardar_nuevo and n_nombre:
-        st.session_state["edificio_s_db"][n_nombre] = {
+        st.session_state["edificios_db"][n_nombre] = {
             "dir": n_dir,
             "alt": n_alt,
             "acc": n_acc,
@@ -262,7 +285,6 @@ if menu == "1️⃣ Verificación de Edificios":
 
   st.divider()
 
-  # Selector de edificios
   lista_nombres = list(st.session_state["edificios_db"].keys())
   edificio_elegido = st.selectbox(
       "Seleccionar Edificio / Sitio", lista_nombres
@@ -274,12 +296,11 @@ if menu == "1️⃣ Verificación de Edificios":
     st.session_state["activo_datos"] = info
     st.session_state["activo_clima"] = obtener_clima()
 
-  # Mostrar ficha técnica activa
   if "activo_nombre" in st.session_state:
     nom = st.session_state["activo_nombre"]
     dat = st.session_state["activo_datos"]
 
-    st.success(f"Ficha Técnica Activa: **{nom}**")
+    st.success(f"Ficha Tecnica Activa: **{nom}**")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -316,7 +337,7 @@ if menu == "1️⃣ Verificación de Edificios":
 # ==========================================
 # SOLAPA 2: GENERACIÓN DE PDF
 # ==========================================
-elif menu == "2️⃣ Generación de PDF":
+elif menu == "2️⃣ Generacion de PDF":
   st.header("📄 Generador de Reportes PDF")
   st.markdown(
       "Diseño profesional institucional con tonos azules, clima y bloque de"
@@ -330,10 +351,9 @@ elif menu == "2️⃣ Generación de PDF":
 
     st.info(f"Edificio listo para exportar: **{nom}**")
 
-    # Campo para la firma digital
     firma_digital = st.text_input(
         "✍️ Ingrese el Nombre / Cargo para la Firma Digital",
-        placeholder="Ej: Of. Juan Pérez - Supervisor de Seguridad Patrimonial",
+        placeholder="Ej: Of. Juan Perez - Supervisor de Seguridad Patrimonial",
     )
 
     if st.button("📥 Generar PDF Institucional Profesional", type="primary"):
@@ -341,15 +361,15 @@ elif menu == "2️⃣ Generación de PDF":
       pdf.add_page()
 
       # Encabezado con diseño azul corporativo
-      pdf.set_fill_color(24, 43, 73)  # Azul Oscuro Institucional
+      pdf.set_fill_color(24, 43, 73)
       pdf.rect(0, 0, 210, 25, "F")
-      pdf.set_font("Arial", "B", 14)
+      pdf.set_font("Arial", "B", 13)
       pdf.set_text_color(255, 255, 255)
       pdf.set_xy(10, 8)
       pdf.cell(
           190,
           10,
-          txt="SPPRO - VERIFICACIÓN DEL LUGAR DEL EVENTO",
+          txt=limpiar_texto("SPPRO - VERIFICACION DEL LUGAR DEL EVENTO"),
           ln=True,
           align="C",
       )
@@ -360,8 +380,8 @@ elif menu == "2️⃣ Generación de PDF":
       pdf.cell(
           200,
           6,
-          txt=(
-              "Fecha y Hora de Emisión: "
+          txt=limpiar_texto(
+              "Fecha y Hora de Emision: "
               + datetime.now().strftime("%d/%m/%Y %H:%M:%S")
           ),
           ln=True,
@@ -370,7 +390,9 @@ elif menu == "2️⃣ Generación de PDF":
       pdf.cell(
           200,
           6,
-          txt=f"Condiciones Climáticas al Momento: {clima_actual}",
+          txt=limpiar_texto(
+              f"Condiciones Climaticas al Momento: {clima_actual}"
+          ),
           ln=True,
           align="R",
       )
@@ -379,30 +401,46 @@ elif menu == "2️⃣ Generación de PDF":
       # Sección: Datos del Edificio
       pdf.set_font("Arial", "B", 11)
       pdf.set_text_color(24, 43, 73)
-      pdf.cell(200, 8, txt="1. INFORMACIÓN TÉCNICA DEL OBJETIVO", ln=True)
+      pdf.cell(
+          200, 8, txt=limpiar_texto("1. INFORMACION TECNICA DEL OBJETIVO"), ln=True
+      )
 
       pdf.set_font("Arial", "", 10)
       pdf.set_text_color(0, 0, 0)
       pdf.set_fill_color(245, 247, 250)
 
-      pdf.cell(200, 7, txt=f"  - Objetivo / Edificio: {nom}", ln=True, fill=True)
-      pdf.cell(
-          200, 7, txt=f"  - Dirección Exacta: {dat['dir']}", ln=True, fill=True
-      )
-      pdf.cell(
-          200, 7, txt=f"  - Altura Catastral: {dat['alt']}", ln=True, fill=True
-      )
       pdf.cell(
           200,
           7,
-          txt=f"  - Accesos (Entradas/Salidas): {dat['acc']}",
+          txt=limpiar_texto(f"  - Objetivo / Edificio: {nom}"),
           ln=True,
           fill=True,
       )
       pdf.cell(
           200,
           7,
-          txt=f"  - Coordenadas GPS: {dat['coords']}",
+          txt=limpiar_texto(f"  - Direccion Exacta: {dat['dir']}"),
+          ln=True,
+          fill=True,
+      )
+      pdf.cell(
+          200,
+          7,
+          txt=limpiar_texto(f"  - Altura Catastral: {dat['alt']}"),
+          ln=True,
+          fill=True,
+      )
+      pdf.cell(
+          200,
+          7,
+          txt=limpiar_texto(f"  - Accesos (Entradas/Salidas): {dat['acc']}"),
+          ln=True,
+          fill=True,
+      )
+      pdf.cell(
+          200,
+          7,
+          txt=limpiar_texto(f"  - Coordenadas GPS: {dat['coords']}"),
           ln=True,
           fill=True,
       )
@@ -411,15 +449,20 @@ elif menu == "2️⃣ Generación de PDF":
       # Sección: Puntos Seguros
       pdf.set_font("Arial", "B", 11)
       pdf.set_text_color(24, 43, 73)
-      pdf.cell(200, 8, txt="2. PUNTOS SEGUROS DE REFERENCIA (CABA)", ln=True)
+      pdf.cell(
+          200,
+          8,
+          txt=limpiar_texto("2. PUNTOS SEGUROS DE REFERENCIA (CABA)"),
+          ln=True,
+      )
 
       pdf.set_font("Arial", "", 10)
       pdf.set_text_color(0, 0, 0)
       pdf.cell(
           200,
           6,
-          txt=(
-              "  * Hospital General de Agudos J. A. Fernández — Cerviño 3356,"
+          txt=limpiar_texto(
+              "  * Hospital General de Agudos J. A. Fernandez — Cerviño 3356,"
               " Recoleta"
           ),
           ln=True,
@@ -427,21 +470,26 @@ elif menu == "2️⃣ Generación de PDF":
       pdf.cell(
           200,
           6,
-          txt="  * Comisaría Vecinal 1A — Suipacha 1156, Retiro",
+          txt=limpiar_texto(
+              "  * Comisaria Vecinal 1A — Suipacha 1156, Retiro"
+          ),
           ln=True,
       )
       pdf.cell(
           200,
           6,
-          txt="  * Departamento Central de Policía (PFA) — Moreno 1550, Monserrat",
-          ln=True,
-      )
-      pdf.cell(
-          200,
-          6,
-          txt=(
-              "  * Edificio Libertador (Min. de Defensa / FFAA) — Azopardo 250,"
+          txt=limpiar_texto(
+              "  * Departamento Central de Policia (PFA) — Moreno 1550,"
               " Monserrat"
+          ),
+          ln=True,
+      )
+      pdf.cell(
+          200,
+          6,
+          txt=limpiar_texto(
+              "  * Edificio Libertador (Min. de Defensa / FFAA) — Azopardo"
+              " 250, Monserrat"
           ),
           ln=True,
       )
@@ -450,12 +498,14 @@ elif menu == "2️⃣ Generación de PDF":
       # Bloque de Firma Digital
       pdf.set_font("Arial", "B", 10)
       pdf.set_text_color(24, 43, 73)
-      pdf.cell(200, 6, txt="3. VALIDACIÓN Y FIRMA DIGITAL", ln=True)
+      pdf.cell(
+          200, 6, txt=limpiar_texto("3. VALIDACION Y FIRMA DIGITAL"), ln=True
+      )
       pdf.ln(10)
 
       pdf.set_font("Arial", "", 10)
       pdf.set_text_color(50, 50, 50)
-      firma_texto = (
+      f_texto = (
           firma_digital
           if firma_digital
           else "Firma Autorizada - Control Operativo SPPRO"
@@ -463,12 +513,14 @@ elif menu == "2️⃣ Generación de PDF":
       pdf.cell(
           200, 6, txt="________________________________________________", ln=True
       )
-      pdf.cell(200, 6, txt=f"Certificado Digital: {firma_texto}", ln=True)
+      pdf.cell(
+          200, 6, txt=limpiar_texto(f"Certificado Digital: {f_texto}"), ln=True
+      )
       pdf.cell(
           200,
           6,
-          txt=(
-              "Sello de Verificación Automatizada SPPRO - Seguridad"
+          txt=limpiar_texto(
+              "Sello de Verificacion Automatizada SPPRO - Seguridad"
               " Patrimonial"
           ),
           ln=True,
@@ -496,15 +548,12 @@ elif menu == "2️⃣ Generación de PDF":
 # SOLAPA 3: ADMINISTRADOR DE USUARIOS
 # ==========================================
 elif menu == "3️⃣ Administrador de Usuarios":
-  st.header("👤 Panel de Administración de Usuarios")
+  st.header("👤 Panel de Administracion de Usuarios")
   st.markdown(
       "Agregue o elimine operadores con acceso autorizado al sistema."
   )
 
-  # Listar usuarios actuales con botón de borrado
   st.subheader("Operadores Habilitados")
-  usuario_a_borrar = None
-
   for user in st.session_state["usuarios_db"]:
     col1, col2 = st.columns([3, 1])
     with col1:
@@ -516,7 +565,6 @@ elif menu == "3️⃣ Administrador de Usuarios":
 
   st.divider()
 
-  # Agregar nuevo usuario
   st.subheader("Registrar Nuevo Operador")
   with st.form("agregar_usuario_form"):
     nuevo_usr = st.text_input("Nombre de Usuario / Legajo")
