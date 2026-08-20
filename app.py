@@ -211,15 +211,17 @@ def obtener_clima():
         timeout=3,
     )
     temp = r.json()["current"]["temperature_2m"]
-    return f"{temp}C"
+    return f"{temp} C"
   except:
     return "No disponible"
 
 
-# Función para limpiar tildes y evitar errores en FPDF básico
+# Limpieza total blindada contra errores de codificación FPDF
 def limpiar_texto(texto):
   if not isinstance(texto, str):
-    return str(texto)
+    texto = str(texto)
+
+  # Reemplazos específicos de caracteres conflictivos
   reemplazos = {
       "á": "a",
       "é": "e",
@@ -233,11 +235,23 @@ def limpiar_texto(texto):
       "Ú": "U",
       "ñ": "n",
       "Ñ": "N",
-      "°": " deg ",
+      "°": " deg",
+      "—": "-",
+      "–": "-",
+      "“": '"',
+      "”": '"',
+      "‘": "'",
+      "’": "'",
   }
   for k, v in reemplazos.items():
     texto = texto.replace(k, v)
-  return texto
+
+  # Filtrado final para garantizar soporte estricto latin-1 / ASCII seguro
+  return (
+      texto.encode("latin-1", errors="ignore")
+      .decode("latin-1")
+      .strip()
+  )
 
 
 # --- NAVEGACIÓN LATERAL ---
@@ -462,7 +476,7 @@ elif menu == "2️⃣ Generacion de PDF":
           200,
           6,
           txt=limpiar_texto(
-              "  * Hospital General de Agudos J. A. Fernandez — Cerviño 3356,"
+              "  * Hospital General de Agudos J. A. Fernandez - Cerviño 3356,"
               " Recoleta"
           ),
           ln=True,
@@ -471,7 +485,7 @@ elif menu == "2️⃣ Generacion de PDF":
           200,
           6,
           txt=limpiar_texto(
-              "  * Comisaria Vecinal 1A — Suipacha 1156, Retiro"
+              "  * Comisaria Vecinal 1A - Suipacha 1156, Retiro"
           ),
           ln=True,
       )
@@ -479,7 +493,7 @@ elif menu == "2️⃣ Generacion de PDF":
           200,
           6,
           txt=limpiar_texto(
-              "  * Departamento Central de Policia (PFA) — Moreno 1550,"
+              "  * Departamento Central de Policia (PFA) - Moreno 1550,"
               " Monserrat"
           ),
           ln=True,
@@ -488,7 +502,7 @@ elif menu == "2️⃣ Generacion de PDF":
           200,
           6,
           txt=limpiar_texto(
-              "  * Edificio Libertador (Min. de Defensa / FFAA) — Azopardo"
+              "  * Edificio Libertador (Min. de Defensa / FFAA) - Azopardo"
               " 250, Monserrat"
           ),
           ln=True,
