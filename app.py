@@ -202,6 +202,9 @@ if "usuarios_db" not in st.session_state:
       "supervisor_general",
   ]
 
+if "historial_auditoria" not in st.session_state:
+  st.session_state["historial_auditoria"] = []
+
 
 # --- FUNCIÓN DE CLIMA ---
 def obtener_clima():
@@ -221,7 +224,6 @@ def limpiar_texto(texto):
   if not isinstance(texto, str):
     texto = str(texto)
 
-  # Reemplazos específicos de caracteres conflictivos
   reemplazos = {
       "á": "a",
       "é": "e",
@@ -246,7 +248,6 @@ def limpiar_texto(texto):
   for k, v in reemplazos.items():
     texto = texto.replace(k, v)
 
-  # Filtrado final para garantizar soporte estricto latin-1 / ASCII seguro
   return (
       texto.encode("latin-1", errors="ignore")
       .decode("latin-1")
@@ -256,7 +257,7 @@ def limpiar_texto(texto):
 
 # --- NAVEGACIÓN LATERAL ---
 with st.sidebar:
-  st.title("🛡️ SPPRO v3.5")
+  st.title("🛡️ SPPRO v3.6")
   st.markdown("Seguridad Patrimonial CABA")
   st.divider()
   menu = st.radio(
@@ -264,7 +265,8 @@ with st.sidebar:
       [
           "1️⃣ Verificacion de Edificios",
           "2️⃣ Generacion de PDF",
-          "3️⃣ Administrador de Usuarios",
+          "3️⃣ Auditoria y Reportes",
+          "4️⃣ Administrador de Usuarios",
       ],
   )
   st.divider()
@@ -309,6 +311,8 @@ if menu == "1️⃣ Verificacion de Edificios":
     st.session_state["activo_nombre"] = edificio_elegido
     st.session_state["activo_datos"] = info
     st.session_state["activo_clima"] = obtener_clima()
+    # Limpiar fotos previas al cambiar de edificio
+    st.session_state["fotos_cargadas"] = []
 
   if "activo_nombre" in st.session_state:
     nom = st.session_state["activo_nombre"]
@@ -322,15 +326,34 @@ if menu == "1️⃣ Verificacion de Edificios":
       st.markdown(f"**📏 Altura Catastral:** {dat['alt']}")
     with col2:
       st.markdown(f"**🚪 Entradas y Salidas:** {dat['acc']}")
-      st.markdown(f"**🌐 Coordenadas GPS:** {dat['coords']}")
+      # Punto 2: Enlace interactivo a Google Maps
+      link_maps = f"https://www.google.com/maps/search/?api=1&query={dat['coords'].replace(' ', '')}"
+      st.markdown(
+          f"**🌐 Coordenadas GPS:** [{dat['coords']}]({link_maps}) *(Hacer clic"
+          " para abrir en Google Maps)*",
+          unsafe_allow_html=True,
+      )
 
     st.markdown("---")
-    st.subheader("📷 Carga de Fotografías / Evidencia")
-    st.file_uploader(
-        "Adjuntar registros fotográficos para futuros eventos",
+    st.subheader("📷 Carga y Previsualización de Evidencia Fotográfica")
+    # Punto 3: Almacenamiento y previsualización de imágenes
+    archivos_subidos = st.file_uploader(
+        "Adjuntar registros fotográficos",
         type=["png", "jpg", "jpeg"],
         accept_multiple_files=True,
     )
+
+    if archivos_subidos:
+      st.session_state["fotos_cargadas"] = archivos_subidos
+      st.markdown("### Previsualización de Evidencias Adjuntas:")
+      cols_fotos = st.columns(len(archivos_subidos))
+      for idx, foto in enumerate(archivos_subidos):
+        with cols_fotos[idx]:
+          st.image(
+              foto,
+              caption=f"Evidencia {idx+1}",
+              use_container_width=True,
+          )
 
     st.markdown("---")
     st.subheader("🛡️ Puntos Seguros Cercanos (CABA - Direcciones Reales)")
@@ -391,13 +414,11 @@ elif menu == "2️⃣ Generacion de PDF":
       pdf.ln(15)
       pdf.set_font("Arial", "", 9)
       pdf.set_text_color(100, 100, 100)
+      fecha_hora_actual = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
       pdf.cell(
           200,
           6,
-          txt=limpiar_texto(
-              "Fecha y Hora de Emision: "
-              + datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-          ),
+          txt=limpiar_texto(f"Fecha y Hora de Emision: {fecha_hora_actual}"),
           ln=True,
           align="R",
       )
@@ -543,6 +564,18 @@ elif menu == "2️⃣ Generacion de PDF":
       archivo_pdf = "sppro_verificacion_evento.pdf"
       pdf.output(archivo_pdf)
 
+      # Punto 1: Guardar en el historial de auditoría al generar con éxito
+      registro_auditoria = {
+          "fecha": fecha_hora_actual,
+          "edificio": nom,
+          "firmante": f_texto,
+          "clima": clima_actual,
+          "fotos_adjuntas": (
+              len(st.session_state.get("fotos_cargadas", []))
+          ),
+      }
+      st.session_state["historial_auditoria"].append(registro_auditoria)
+
       with open(archivo_pdf, "rb") as f:
         st.download_button(
             label="💾 Descargar PDF Profesional Ahora",
@@ -550,7 +583,9 @@ elif menu == "2️⃣ Generacion de PDF":
             file_name=archivo_pdf,
             mime="application/pdf",
         )
-      st.success("¡PDF generado con éxito bajo estándares corporativos!")
+      st.success(
+          "¡PDF generado con éxito y registrado en el sistema de auditoría!"
+      )
   else:
     st.warning(
         "⚠️ Atención: Primero debe ir a la solapa **1️⃣ Verificación de Edificios**"
@@ -559,9 +594,45 @@ elif menu == "2️⃣ Generacion de PDF":
 
 
 # ==========================================
-# SOLAPA 3: ADMINISTRADOR DE USUARIOS
+# SOLAPA 3: AUDITORÍA Y REPORTES PREVIOS
 # ==========================================
-elif menu == "3️⃣ Administrador de Usuarios":
+elif menu == "3️⃣ Auditoria y Reportes":
+  st.header("📊 Registro de Auditoría y Reportes Históricos")
+  st.markdown(
+      "Control de trazabilidad de todas las verificaciones y PDFs emitidos en"
+      " la sesión."
+  )
+
+  if len(st.session_state["historial_auditoria"]) == 0:
+    st.info(
+        "Aún no se han generado reportes en esta sesión. Los registros"
+        " aparecerán aquí automáticamente."
+    )
+  else:
+    st.success(
+        f"Total de reportes emitidos: {len(st.session_state['historial_auditoria'])}"
+    )
+
+    for i, item in enumerate(
+        reversed(st.session_state["historial_auditoria"])
+    ):
+      with st.expander(
+          f"📄 Reporte #{len(st.session_state['historial_auditoria']) - i} -"
+          f" {item['edificio']} ({item['fecha']})"
+      ):
+        st.markdown(f"**🏢 Objetivo:** {item['edificio']}")
+        st.markdown(f"**📅 Fecha y Hora:** {item['fecha']}")
+        st.markdown(f"**✍️ Responsable / Firma:** {item['firmante']}")
+        st.markdown(f"**🌡️ Clima registrado:** {item['clima']}")
+        st.markdown(
+            f"**📷 Archivos fotográficos adjuntos:** {item['fotos_adjuntas']}"
+        )
+
+
+# ==========================================
+# SOLAPA 4: ADMINISTRADOR DE USUARIOS
+# ==========================================
+elif menu == "4️⃣ Administrador de Usuarios":
   st.header("👤 Panel de Administracion de Usuarios")
   st.markdown(
       "Agregue o elimine operadores con acceso autorizado al sistema."
@@ -590,4 +661,4 @@ elif menu == "3️⃣ Administrador de Usuarios":
         st.success(f"Usuario '{nuevo_usr}' agregado con éxito.")
         st.rerun()
       else:
-        st.error("El usuario ya existe en el sistema.")
+        st.error("El usuario ya 
