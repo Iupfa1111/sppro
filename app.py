@@ -10,15 +10,6 @@ import clima
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="SPPRO by Angel Ibañez", layout="wide")
 
-# --- ESTILOS VISUALES (Azul Institucional) ---
-st.markdown("""
-    <style>
-        .stButton>button { background-color: #003366; color: white; border-radius: 4px; }
-        .stButton>button:hover { background-color: #002244; color: white; }
-        h1, h2, h3 { color: #003366; }
-    </style>
-""", unsafe_allow_html=True)
-
 # ==========================================
 # BASE DE DATOS Y AUTOCORRECCIÓN
 # ==========================================
@@ -26,7 +17,6 @@ def init_db():
     conn = sqlite3.connect("sppro.db")
     cursor = conn.cursor()
     
-    # Tabla usuarios
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS usuarios (
             username TEXT PRIMARY KEY,
@@ -36,7 +26,6 @@ def init_db():
         )
     """)
     
-    # Tabla edificios (Objetivos)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS edificios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -53,7 +42,6 @@ def init_db():
         )
     """)
 
-    # Tabla fotografías asociadas a edificios
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS fotografias (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -66,7 +54,6 @@ def init_db():
         )
     """)
 
-    # Tabla cámaras observadas
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS camaras (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -77,7 +64,6 @@ def init_db():
         )
     """)
 
-    # Tabla puntos de apoyo
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS puntos_apoyo (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -88,18 +74,6 @@ def init_db():
         )
     """)
 
-    # Tabla checklist
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS checklist (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            edificio_id INTEGER,
-            item TEXT,
-            verificado INTEGER,
-            FOREIGN KEY(edificio_id) REFERENCES edificios(id)
-        )
-    """)
-
-    # Crear usuario administrador por defecto si no existe
     cursor.execute("SELECT COUNT(*) FROM usuarios")
     if cursor.fetchone()[0] == 0:
         cursor.execute("INSERT INTO usuarios VALUES (?, ?, ?, ?)", ("admin", "admin123", 1, "Administrador"))
@@ -121,10 +95,10 @@ def limpiar_texto(texto):
 class PDFReporte(FPDF):
     def header(self):
         self.set_font("Arial", "B", 16)
-        self.set_text_color(0, 51, 102) # Azul institucional
+        self.set_text_color(0, 51, 102)
         self.cell(0, 10, limpiar_texto("SPPRO"), ln=True, align="C")
         self.set_font("Arial", "B", 12)
-        self.cell(0, 6, limpiar_texto("Informe de Verificación"), ln=True, align="C")
+        self.cell(0, 6, limpiar_texto("Informe de Verificacion"), ln=True, align="C")
         self.line(10, 25, 200, 25)
         self.ln(10)
 
@@ -135,7 +109,7 @@ class PDFReporte(FPDF):
         self.cell(0, 5, limpiar_texto("Firma del operador"), 0, 1, "C")
         self.ln(2)
         self.set_font("Arial", "I", 8)
-        self.cell(0, 5, limpiar_texto("SPPRO\nby Angel Ibañez"), 0, 0, "R")
+        self.cell(0, 5, limpiar_texto("SPPRO by Angel Ibanez"), 0, 0, "R")
 
 # ==========================================
 # ESTADOS DE SESIÓN
@@ -150,14 +124,14 @@ if "logged_in" not in st.session_state:
 # ==========================================
 if not st.session_state["logged_in"]:
     st.title("SPPRO")
-    st.caption("by Angel Ibañez - Seguridad Patrimonial")
+    st.caption("by Angel Ibanez - Seguridad Patrimonial")
     st.divider()
     
     _, col_login, _ = st.columns([1, 2, 1])
     with col_login:
         st.subheader("Acceso al Sistema")
         usuario_ingresado = st.text_input("Usuario")
-        clave_ingresada = st.text_input("Contraseña", type="password")
+        clave_ingresada = st.text_input("Contrasena", type="password")
         
         if st.button("Ingresar", use_container_width=True):
             conn = sqlite3.connect("sppro.db")
@@ -173,9 +147,9 @@ if not st.session_state["logged_in"]:
                     st.session_state["user_role"] = res[2]
                     st.rerun()
                 else:
-                    st.error("⚠️ Usuario desactivado por el administrador.")
+                    st.error("Usuario desactivado por el administrador.")
             else:
-                st.error("❌ Usuario o contraseña incorrectos.")
+                st.error("Usuario o contrasena incorrectos.")
     st.stop()
 
 # ==========================================
@@ -184,35 +158,81 @@ if not st.session_state["logged_in"]:
 st.sidebar.title(f"SPPRO | {st.session_state['username']}")
 st.sidebar.caption(f"Rol: {st.session_state['user_role']}")
 
-menu_items = ["🏢 Verificación de Objetivos", "🏥 Puntos de Apoyo", "🌦️ Clima"]
+menu_items = ["Verificacion de Objetivos", "Puntos de Apoyo", "Clima"]
 if st.session_state["user_role"] == "Administrador":
-    menu_items.append("👥 Gestión de Usuarios")
+    menu_items.append("Gestion de Usuarios")
 
-seccion = st.sidebar.radio("Navegación:", menu_items)
+seccion = st.sidebar.radio("Navegacion:", menu_items)
 
 st.sidebar.divider()
-if st.sidebar.button("Cerrar Sesión", use_container_width=True):
+if st.sidebar.button("Cerrar Sesion", use_container_width=True):
     st.session_state["logged_in"] = False
     st.rerun()
 
 st.sidebar.markdown("---")
-st.sidebar.write("SPPRO by Angel Ibañez")
+st.sidebar.write("SPPRO by Angel Ibanez")
 
 # ==========================================
 # SECCIÓN 1: VERIFICACIÓN DE OBJETIVOS
 # ==========================================
-if seccion == "🏢 Verificación de Objetivos":
-    st.header("🏢 Verificación de Objetivos")
+if seccion == "Verificacion de Objetivos":
+    st.header("Verificacion de Objetivos")
     
-    tab_list, tab_new = st.tabs(["📋 Consultar / Historial", "➕ Nuevo Objetivo"])
+    tab_list, tab_new = st.tabs(["Consultar / Historial", "Nuevo Objetivo"])
     
     with tab_new:
         st.subheader("Registrar Nuevo Objetivo")
+        
+        # Diccionario de edificios famosos de CABA para autocompletar
+        edificios_caba = {
+            "Personalizado (Ingresar a mano)": {"dir": "", "tipo": "Edificio", "altura": ""},
+            "Casa Rosada": {"dir": "Balcarce 50", "tipo": "Organismo publico", "altura": "50"},
+            "Edificio Kavanagh": {"dir": "Florida 1065", "tipo": "Edificio", "altura": "1065"},
+            "Palacio Estrugamou": {"dir": "Esmeralda y Juncal", "tipo": "Edificio", "altura": "S/N"},
+            "Galeria Guemes": {"dir": "Florida 165", "tipo": "Comercio", "altura": "165"},
+            "Centro Cultural Kirchner (CCK)": {"dir": "Sarmiento 151", "tipo": "Organismo publico", "altura": "151"},
+            "Catedral Metropolitana": {"dir": "San Martin 27", "tipo": "Institucion", "altura": "27"},
+            "Cabildo de Buenos Aires": {"dir": "Bolivar 65", "tipo": "Institucion", "altura": "65"},
+            "Torre Monumental (Torre de los Ingleses)": {"dir": "Av. Dr. Jose Maria Ramos Mejia 1315", "tipo": "Edificio", "altura": "1315"},
+            "Edificio Comega": {"dir": "Av. Corrientes 222", "tipo": "Edificio", "altura": "222"},
+            "Edificio Safico": {"dir": "Av. Corrientes 456", "tipo": "Edificio", "altura": "456"},
+            "Banco de Boston": {"dir": "Diagonal Norte y Florida", "tipo": "Edificio", "altura": "S/N"},
+            "Centro Naval": {"dir": "Florida y Cordoba", "tipo": "Institucion", "altura": "S/N"},
+            "Palacio Barolo": {"dir": "Av. de Mayo 1370", "tipo": "Edificio", "altura": "1370"},
+            "Congreso de la Nacion Argentina": {"dir": "Av. Entre Rios 179", "tipo": "Organismo publico", "altura": "179"},
+            "Cafe Tortoni": {"dir": "Av. de Mayo 825", "tipo": "Comercio", "altura": "825"},
+            "Manzana de las Luces": {"dir": "Venezuela 469", "tipo": "Institucion", "altura": "469"},
+            "Libreria de Avila": {"dir": "Alsina 500", "tipo": "Comercio", "altura": "500"},
+            "Teatro Colon": {"dir": "Cerrito 628", "tipo": "Institucion", "altura": "628"},
+            "Tribunales Federales": {"dir": "Talcahuano 550", "tipo": "Organismo publico", "altura": "550"},
+            "Palacio de Aguas Corrientes": {"dir": "Av. Cordoba 1950", "tipo": "Edificio", "altura": "1950"},
+            "El Ateneo Grand Splendid": {"dir": "Av. Santa Fe 1860", "tipo": "Comercio", "altura": "1860"},
+            "Palacio Duhau": {"dir": "Av. Alvear 1661", "tipo": "Hotel", "altura": "1661"},
+            "Cementerio de La Recoleta": {"dir": "Junin 1760", "tipo": "Institucion", "altura": "1760"},
+            "Palacio Pereda (Embajada de Brasil)": {"dir": "Arroyo 1130", "tipo": "Institucion", "altura": "1130"},
+            "Usina del Arte": {"dir": "Caffarena 1", "tipo": "Institucion", "altura": "1"},
+            "Hipodromo de Palermo": {"dir": "Av. del Libertador 4101", "tipo": "Comercio", "altura": "4101"},
+            "Facultad de Derecho (UBA)": {"dir": "Av. Figueroa Alcorta 2263", "tipo": "Institucion", "altura": "2263"},
+            "Jardin Botanico Carlos Thays": {"dir": "Av. Santa Fe 3951", "tipo": "Institucion", "altura": "3951"},
+            "Museo Nacional de Bellas Artes": {"dir": "Av. Del Libertador 1473", "tipo": "Institucion", "altura": "1473"},
+            "Estadio Monumental (River Plate)": {"dir": "Av. Figueroa Alcorta 7597", "tipo": "Institucion", "altura": "7597"}
+        }
+
+        seleccion_rapida = st.selectbox("Seleccion rapida de Edificios Emblematicos CABA (o ingrese manual abajo):", list(edificios_caba.keys()))
+        
+        datos_sugeridos = edificios_caba[seleccion_rapida]
+
         with st.form("form_nuevo_objetivo"):
-            nombre = st.text_input("Nombre del objetivo *")
-            tipo = st.selectbox("Tipo de objetivo", ["Edificio", "Hotel", "Empresa", "Comercio", "Organismo público", "Institución", "Otro"])
-            direccion = st.text_input("Dirección *")
-            altura = st.text_input("Altura catastral")
+            if seleccion_rapida != "Personalizado (Ingresar a mano)":
+                nombre = st.text_input("Nombre del objetivo *", value=seleccion_rapida)
+                tipo = st.selectbox("Tipo de objetivo", ["Edificio", "Hotel", "Empresa", "Comercio", "Organismo publico", "Institucion", "Otro"], index=["Edificio", "Hotel", "Empresa", "Comercio", "Organismo publico", "Institucion", "Otro"].index(datos_sugeridos["tipo"]) if datos_sugeridos["tipo"] in ["Edificio", "Hotel", "Empresa", "Comercio", "Organismo publico", "Institucion", "Otro"] else 0)
+                direccion = st.text_input("Direccion *", value=datos_sugeridos["dir"])
+                altura = st.text_input("Altura catastral", value=datos_sugeridos["altura"])
+            else:
+                nombre = st.text_input("Nombre del objetivo *")
+                tipo = st.selectbox("Tipo de objetivo", ["Edificio", "Hotel", "Empresa", "Comercio", "Organismo publico", "Institucion", "Otro"])
+                direccion = st.text_input("Direccion * (ej. Av. Corrientes 1234)")
+                altura = st.text_input("Altura catastral")
             
             col_c1, col_c2 = st.columns(2)
             with col_c1:
@@ -240,9 +260,9 @@ if seccion == "🏢 Verificación de Objetivos":
                     """, (nombre, tipo, direccion, altura, latitud, longitud, pisos, subsuelos, horario, observaciones))
                     conn.commit()
                     conn.close()
-                    st.success("✅ Objetivo registrado exitosamente.")
+                    st.success("Objetivo registrado exitosamente.")
                 else:
-                    st.error("⚠️ El nombre y la dirección son obligatorios.")
+                    st.error("El nombre y la direccion son obligatorios.")
 
     with tab_list:
         st.subheader("Consultar Objetivos Registrados")
@@ -251,17 +271,16 @@ if seccion == "🏢 Verificación de Objetivos":
         conn.close()
         
         if df_edificios.empty:
-            st.info("No hay objetivos registrados en el sistema.")
+            st.info("No hay objetivos registrados en el sistema. Utilice la pestaña 'Nuevo Objetivo' para registrar el primero.")
         else:
             for idx, row in df_edificios.iterrows():
                 edf_id = row["id"]
-                with st.expander(f"🏢 {row['nombre']} ({row['tipo'] or 'General'}) - {row['direccion']}"):
-                    st.write(f"*Dirección:* {row['direccion']} | *Altura:* {row['altura']}")
+                with st.expander(f"{row['nombre']} ({row['tipo'] or 'General'}) - {row['direccion']}"):
+                    st.write(f"*Direccion:* {row['direccion']} | *Altura:* {row['altura']}")
                     st.write(f"*Coordenadas:* Lat: {row['latitud']}, Lon: {row['longitud']}")
                     st.write(f"*Pisos:* {row['pisos']} | *Subsuelos:* {row['subsuelos']} | *Horario:* {row['horario']}")
                     st.write(f"*Observaciones:* {row['observaciones']}")
                     
-                    # Cargar datos asociados
                     conn = sqlite3.connect("sppro.db")
                     c = conn.cursor()
                     c.execute("SELECT archivo, descripcion FROM fotografias WHERE edificio_id = ?", (edf_id,))
@@ -270,15 +289,14 @@ if seccion == "🏢 Verificación de Objetivos":
                     camaras = c.fetchall()
                     conn.close()
                     
-                    st.markdown(f"---")
-                    st.markdown(f"*Fotografías registradas:* {len(fotos)} | *Cámaras registradas:* {len(camaras)}")
+                    st.markdown("---")
+                    st.write(f"Fotografias registradas: {len(fotos)} | Camaras registradas: {len(camaras)}")
                     
-                    # Subir nueva fotografía
                     with st.form(f"form_foto_{edf_id}"):
-                        st.markdown("### ➕ Agregar Fotografía")
-                        desc_foto = st.text_input("Descripción de la fotografía (ej. Fachada, Acceso principal)", key=f"desc_{edf_id}")
+                        st.markdown("### Agregar Fotografia")
+                        desc_foto = st.text_input("Descripcion de la fotografia", key=f"desc_{edf_id}")
                         archivo_subido = st.file_uploader("Seleccionar imagen", type=["jpg", "jpeg", "png"], key=f"file_{edf_id}")
-                        btn_subir_foto = st.form_submit_button("Guardar Fotografía")
+                        btn_subir_foto = st.form_submit_button("Guardar Fotografia")
                         
                         if btn_subir_foto and archivo_subido:
                             dir_fotos = f"fotos/edificio_{edf_id}"
@@ -290,18 +308,17 @@ if seccion == "🏢 Verificación de Objetivos":
                             conn = sqlite3.connect("sppro.db")
                             cursor = conn.cursor()
                             cursor.execute("INSERT INTO fotografias (edificio_id, archivo, descripcion, usuario, fecha) VALUES (?, ?, ?, ?, ?)",
-                                           (edf_id, ruta_archivo, desc_foto or "Sin descripción", st.session_state["username"], datetime.datetime.now().strftime("%Y-%m-%d %H:%M")))
+                                           (edf_id, ruta_archivo, desc_foto or "Sin descripcion", st.session_state["username"], datetime.datetime.now().strftime("%Y-%m-%d %H:%M")))
                             conn.commit()
                             conn.close()
-                            st.success("✅ Fotografía guardada persistentemente.")
+                            st.success("Fotografia guardada.")
                             st.rerun()
 
-                    # Registro manual de cámaras
                     with st.form(f"form_cam_{edf_id}"):
-                        st.markdown("### 🎥 Registrar Cámara")
-                        ubicacion_cam = st.text_input("Ubicación de la cámara (ej. Acceso principal)", key=f"ucam_{edf_id}")
-                        obs_cam = st.text_input("Observación", key=f"ocam_{edf_id}")
-                        btn_cam = st.form_submit_button("Guardar Cámara")
+                        st.markdown("### Registrar Camara")
+                        ubicacion_cam = st.text_input("Ubicacion de la camara", key=f"ucam_{edf_id}")
+                        obs_cam = st.text_input("Observacion", key=f"ocam_{edf_id}")
+                        btn_cam = st.form_submit_button("Guardar Camara")
                         
                         if btn_cam and ubicacion_cam:
                             conn = sqlite3.connect("sppro.db")
@@ -310,16 +327,13 @@ if seccion == "🏢 Verificación de Objetivos":
                                            (edf_id, ubicacion_cam, obs_cam))
                             conn.commit()
                             conn.close()
-                            st.success("✅ Cámara registrada.")
+                            st.success("Camara registrada.")
                             st.rerun()
 
-                    # Generación de Informe PDF Profesional
-                    st.markdown("### 📄 Generar Informe PDF")
-                    
-                    # Selección de fotografías para el PDF
+                    st.markdown("### Generar Informe PDF")
                     fotos_seleccionadas = []
                     if fotos:
-                        st.markdown("Seleccione fotografías para incluir en el informe:")
+                        st.markdown("Seleccione fotografias para incluir en el informe:")
                         for foto in fotos:
                             ruta_f, desc_f = foto[0], foto[1]
                             if st.checkbox(f"{desc_f} ({os.path.basename(ruta_f)})", value=True, key=f"chk_f_{edf_id}_{ruta_f}"):
@@ -331,44 +345,40 @@ if seccion == "🏢 Verificación de Objetivos":
                         pdf.set_font("Arial", "B", 12)
                         pdf.set_text_color(0, 51, 102)
                         
-                        # 1. IDENTIFICACIÓN DEL OBJETIVO
-                        pdf.cell(0, 8, limpiar_texto("IDENTIFICACIÓN DEL OBJETIVO"), ln=True)
+                        pdf.cell(0, 8, limpiar_texto("IDENTIFICACION DEL OBJETIVO"), ln=True)
                         pdf.set_font("Arial", "", 10)
                         pdf.set_text_color(0, 0, 0)
                         pdf.cell(0, 6, limpiar_texto(f"Nombre: {row['nombre']}"), ln=True)
                         pdf.cell(0, 6, limpiar_texto(f"Tipo: {row['tipo']}"), ln=True)
-                        pdf.cell(0, 6, limpiar_texto(f"Dirección: {row['direccion']} (Altura: {row['altura']})"), ln=True)
+                        pdf.cell(0, 6, limpiar_texto(f"Direccion: {row['direccion']} (Altura: {row['altura']})"), ln=True)
                         pdf.cell(0, 6, limpiar_texto(f"Coordenadas: Lat: {row['latitud']}, Lon: {row['longitud']}"), ln=True)
                         pdf.cell(0, 6, limpiar_texto(f"Pisos: {row['pisos']} | Subsuelos: {row['subsuelos']}"), ln=True)
-                        pdf.cell(0, 6, limpiar_texto(f"Horario de funcionamiento: {row['horario']}"), ln=True)
+                        pdf.cell(0, 6, limpiar_texto(f"Horario: {row['horario']}"), ln=True)
                         pdf.ln(4)
                         
-                        # 2. CONDICIONES METEOROLÓGICAS
                         pdf.set_font("Arial", "B", 12)
                         pdf.set_text_color(0, 51, 102)
-                        pdf.cell(0, 8, limpiar_texto("CONDICIONES METEOROLÓGICAS"), ln=True)
+                        pdf.cell(0, 8, limpiar_texto("CONDICIONES METEOROLOGICAS"), ln=True)
                         pdf.set_font("Arial", "", 10)
                         pdf.set_text_color(0, 0, 0)
                         clima_actual = clima.obtener_clima()
                         if clima_actual:
                             pdf.cell(0, 6, limpiar_texto(f"Temperatura: {clima_actual['temperatura']} | Estado: {clima_actual['estado']}"), ln=True)
-                            pdf.cell(0, 6, limpiar_texto(f"Viento: {clima_actual['viento']} | Humedad: {clima_actual['humedad']} | Presión: {clima_actual['presion']}"), ln=True)
+                            pdf.cell(0, 6, limpiar_texto(f"Viento: {clima_actual['viento']} | Humedad: {clima_actual['humedad']} | Presion: {clima_actual['presion']}"), ln=True)
                         else:
-                            pdf.cell(0, 6, limpiar_texto("⚠️ Información meteorológica no disponible."), ln=True)
+                            pdf.cell(0, 6, limpiar_texto("Informacion meteorologica no disponible."), ln=True)
                         pdf.ln(4)
 
-                        # 3. CÁMARAS OBSERVADAS
                         if camaras:
                             pdf.set_font("Arial", "B", 12)
                             pdf.set_text_color(0, 51, 102)
-                            pdf.cell(0, 8, limpiar_texto("CÁMARAS OBSERVADAS"), ln=True)
+                            pdf.cell(0, 8, limpiar_texto("CAMARAS OBSERVADAS"), ln=True)
                             pdf.set_font("Arial", "", 10)
                             pdf.set_text_color(0, 0, 0)
                             for idx_c, cam in enumerate(camaras, 1):
-                                pdf.cell(0, 6, limpiar_texto(f"Cámara {idx_c:02d} - Ubicación: {cam[0]} | Observación: {cam[1]}"), ln=True)
+                                pdf.cell(0, 6, limpiar_texto(f"Camara {idx_c:02d} - Ubicacion: {cam[0]} | Observacion: {cam[1]}"), ln=True)
                             pdf.ln(4)
 
-                        # 4. PUNTOS DE APOYO
                         conn_p = sqlite3.connect("sppro.db")
                         puntos_db = pd.read_sql("SELECT * FROM puntos_apoyo", conn_p).values.tolist()
                         conn_p.close()
@@ -382,11 +392,10 @@ if seccion == "🏢 Verificación de Objetivos":
                                 pdf.cell(0, 6, limpiar_texto(f"[{pt[2]}] {pt[1]} - {pt[3]} ({pt[4]})"), ln=True)
                             pdf.ln(4)
 
-                        # 5. REGISTRO FOTOGRÁFICO SELECCIONADO
                         if fotos_seleccionadas:
                             pdf.set_font("Arial", "B", 12)
                             pdf.set_text_color(0, 51, 102)
-                            pdf.cell(0, 8, limpiar_texto("REGISTRO FOTOGRÁFICO"), ln=True)
+                            pdf.cell(0, 8, limpiar_texto("REGISTRO FOTOGRAFICO"), ln=True)
                             pdf.set_font("Arial", "", 10)
                             pdf.set_text_color(0, 0, 0)
                             for foto in fotos_seleccionadas:
@@ -400,7 +409,6 @@ if seccion == "🏢 Verificación de Objetivos":
                                         pass
                             pdf.ln(4)
 
-                        # 6. OBSERVACIONES GENERALES
                         if row["observaciones"]:
                             pdf.set_font("Arial", "B", 12)
                             pdf.set_text_color(0, 51, 102)
@@ -411,7 +419,7 @@ if seccion == "🏢 Verificación de Objetivos":
 
                         pdf_bytes = pdf.output(dest="S").encode("latin-1")
                         st.download_button(
-                            label=f"📥 Descargar PDF Generado - {row['nombre']}",
+                            label=f"Descargar PDF - {row['nombre']}",
                             data=pdf_bytes,
                             file_name=f"Informe_SPPRO_{row['nombre'].replace(' ', '_')}.pdf",
                             mime="application/pdf",
@@ -421,16 +429,16 @@ if seccion == "🏢 Verificación de Objetivos":
 # ==========================================
 # SECCIÓN 2: PUNTOS DE APOYO
 # ==========================================
-elif seccion == "🏥 Puntos de Apoyo":
-    st.header("🏥 Puntos de Apoyo")
+elif seccion == "Puntos de Apoyo":
+    st.header("Puntos de Apoyo")
     
     tab_p1, tab_p2 = st.tabs(["Listado", "Agregar Punto de Apoyo"])
     
     with tab_p2:
         with st.form("form_punto_apoyo"):
             nombre_pa = st.text_input("Nombre")
-            tipo_pa = st.selectbox("Categoría", ["Hospitales", "Comisarías", "Bomberos", "Defensa Civil", "Otros"])
-            dir_pa = st.text_input("Dirección")
+            tipo_pa = st.selectbox("Categoria", ["Hospitales", "Comisarias", "Bomberos", "Defensa Civil", "Otros"])
+            dir_pa = st.text_input("Direccion")
             obs_pa = st.text_area("Observaciones")
             
             if st.form_submit_button("Guardar Punto de Apoyo"):
@@ -441,9 +449,9 @@ elif seccion == "🏥 Puntos de Apoyo":
                               (nombre_pa, tipo_pa, dir_pa, obs_pa))
                     conn.commit()
                     conn.close()
-                    st.success("✅ Punto de apoyo registrado correctamente.")
+                    st.success("Punto de apoyo registrado.")
                 else:
-                    st.error("⚠️ El nombre es obligatorio.")
+                    st.error("El nombre es obligatorio.")
                     
     with tab_p1:
         conn = sqlite3.connect("sppro.db")
@@ -458,8 +466,8 @@ elif seccion == "🏥 Puntos de Apoyo":
 # ==========================================
 # SECCIÓN 3: CLIMA
 # ==========================================
-elif seccion == "🌦️ Clima":
-    st.header("🌦️ Condiciones Meteorológicas")
+elif seccion == "Clima":
+    st.header("Condiciones Meteorologicas")
     datos_clima = clima.obtener_clima()
     
     if datos_clima:
@@ -471,20 +479,20 @@ elif seccion == "🌦️ Clima":
             st.metric("Viento", datos_clima["viento"])
             st.metric("Humedad", datos_clima["humedad"])
         with col3:
-            st.metric("Presión", datos_clima["presion"])
-        st.caption(f"Última actualización: {datos_clima['actualizacion']}")
+            st.metric("Presion", datos_clima["presion"])
+        st.caption(f"Ultima actualizacion: {datos_clima['actualizacion']}")
     else:
-        st.warning("⚠️ Información meteorológica no disponible.")
+        st.warning("Informacion meteorologica no disponible.")
 
 # ==========================================
 # SECCIÓN 4: GESTIÓN DE USUARIOS
 # ==========================================
-elif seccion == "👥 Gestión de Usuarios":
+elif seccion == "Gestion de Usuarios":
     if st.session_state["user_role"] != "Administrador":
-        st.error("⛔ Acceso denegado.")
+        st.error("Acceso denegado.")
         st.stop()
         
-    st.header("👥 Gestión de Usuarios")
+    st.header("Gestion de Usuarios")
     
     with st.form("nuevo_usuario_admin"):
         st.subheader("Crear Usuario")
@@ -500,12 +508,12 @@ elif seccion == "👥 Gestión de Usuarios":
                     c.execute("INSERT INTO usuarios VALUES (?, ?, 1, ?)", (nuevo_user, nuevo_pass, nuevo_rol))
                     conn.commit()
                     conn.close()
-                    st.success("✅ Usuario creado exitosamente.")
+                    st.success("Usuario creado exitosamente.")
                     st.rerun()
                 except:
-                    st.error("❌ El usuario ya existe.")
+                    st.error("El usuario ya existe.")
             else:
-                st.warning("⚠️ Complete los campos.")
+                st.warning("Complete los campos.")
 
     st.divider()
     st.subheader("Usuarios Registrados")
@@ -517,7 +525,7 @@ elif seccion == "👥 Gestión de Usuarios":
         cols = st.columns([2, 1, 1, 1])
         cols[0].write(row["username"])
         cols[1].write(row["rol"])
-        cols[2].write("🟢 Activo" if row["activo"] == 1 else "🔴 Inactivo")
+        cols[2].write("Activo" if row["activo"] == 1 else "Inactivo")
         if row["username"] != "admin":
             if row["activo"] == 1:
                 if cols[3].button("Dar de baja", key=f"baja_{row['username']}"):
@@ -529,7 +537,7 @@ elif seccion == "👥 Gestión de Usuarios":
             else:
                 if cols[3].button("Dar de alta", key=f"alta_{row['username']}"):
                     conn = sqlite3.connect("sppro.db")
-                    conn.cursor().execute("UPDATE usuarios -> SET activo = 1 WHERE username = ?", (row["username"],))
+                    conn.cursor().execute("UPDATE usuarios SET activo = 1 WHERE username = ?", (row["username"],))
                     conn.commit()
                     conn.close()
                     st.rerun()
