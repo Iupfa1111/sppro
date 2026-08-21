@@ -102,6 +102,14 @@ elif menu == "📄 Reporte PDF Institucional":
         responsable = st.text_input("Nombre y Apellido del Responsable Técnico Emisor", "Lic. Supervisor Operativo SPPRO")
         
         if st.button("Generar Reporte PDF Detallado"):
+            # Función auxiliar para limpiar emojis y símbolos incompatibles con FPDF estándar
+            def limpiar_texto(texto):
+                if not isinstance(texto, str):
+                    texto = str(texto)
+                for simbolo in ["☀️", "🌤️", "⛅", "☁️", "🌫️", "🌧️", "⛈️", "°"]:
+                    texto = texto.replace(simbolo, "")
+                return texto.encode('latin-1', 'ignore').decode('latin-1')
+
             pdf = FPDF()
             pdf.add_page()
             
@@ -110,31 +118,32 @@ elif menu == "📄 Reporte PDF Institucional":
             
             # Encabezado institucional formal
             pdf.set_font("Arial", 'B', 14)
-            pdf.cell(190, 7, "SISTEMA DE PROTECCIÓN Y EVALUACIÓN EDILICIA (SPPRO CABA)", ln=True, align="C")
+            pdf.cell(190, 7, "SISTEMA DE PROTECCION Y EVALUACION EDILICIA (SPPRO CABA)", ln=True, align="C")
             pdf.set_font("Arial", 'B', 10)
-            pdf.cell(190, 5, "INFORME TÉCNICO OPERATIVO DE COBERTURA Y EMERGENCIAS", ln=True, align="C")
+            pdf.cell(190, 5, "INFORME TECNICO OPERATIVO DE COBERTURA Y EMERGENCIAS", ln=True, align="C")
             
             pdf.ln(3)
             pdf.line(10, pdf.get_y(), 200, pdf.get_y())
             pdf.ln(4)
             
             # Metadatos del Documento
+            clima_limpio = limpiar_texto(dat['clima'])
             pdf.set_font("Arial", 'B', 9)
-            pdf.cell(95, 5, f"Código de Auditoría: SPPRO-{datetime.now().strftime('%Y%m%d%H%M')}")
-            pdf.cell(95, 5, f"Condición Climática: {dat['clima']}", ln=True, align="R")
-            pdf.cell(190, 5, f"Fecha y Hora de Emisión: {dat['fecha']}", ln=True)
+            pdf.cell(95, 5, f"Codigo de Auditoria: SPPRO-{datetime.now().strftime('%Y%m%d%H%M')}")
+            pdf.cell(95, 5, f"Condicion Climatica: {clima_limpio}", ln=True, align="R")
+            pdf.cell(190, 5, f"Fecha y Hora de Emision: {dat['fecha']}", ln=True)
             
             pdf.ln(3)
             
             # Sección 1: Información Catastral Ampliada
             pdf.set_font("Arial", 'B', 10)
-            pdf.cell(190, 6, "1. DATOS CATASTRALES Y CARACTERÍSTICAS EDILICIAS", ln=True)
+            pdf.cell(190, 6, "1. DATOS CATASTRALES Y CARACTERISTICAS EDILICIAS", ln=True)
             pdf.set_font("Arial", '', 9)
             
             pdf.cell(50, 6, "Objetivo Evaluado:", border=1)
-            pdf.cell(140, 6, f" {dat['nombre']}", border=1, ln=1)
-            pdf.cell(50, 6, "Ubicación (Calle y Número):", border=1)
-            pdf.cell(140, 6, f" {dat['dir']}", border=1, ln=1)
+            pdf.cell(140, 6, f" {limpiar_texto(dat['nombre'])}", border=1, ln=1)
+            pdf.cell(50, 6, "Ubicacion (Calle y Numero):", border=1)
+            pdf.cell(140, 6, f" {limpiar_texto(dat['dir'])}", border=1, ln=1)
             pdf.cell(50, 6, "Coordenadas GPS:", border=1)
             pdf.cell(140, 6, f" {dat['coords']}", border=1, ln=1)
             pdf.cell(50, 6, "Accesos Habilitados:", border=1)
@@ -144,37 +153,37 @@ elif menu == "📄 Reporte PDF Institucional":
             
             # Sección 2: Detalle Completo de los 2 Hospitales Cercanos
             pdf.set_font("Arial", 'B', 10)
-            pdf.cell(190, 6, "2. ANÁLISIS DE COBERTURA SANITARIA (HOSPITALES CERCANOS)", ln=True)
+            pdf.cell(190, 6, "2. ANALISIS DE COBERTURA SANITARIA (HOSPITALES CERCANOS)", ln=True)
             pdf.set_font("Arial", 'B', 9)
-            pdf.cell(120, 5, "Establecimiento Médico de Salud CABA", border=1, align="C")
+            pdf.cell(120, 5, "Establecimiento Medico de Salud CABA", border=1, align="C")
             pdf.cell(70, 5, "Distancia Lineal Calculada", border=1, align="C", ln=1)
             
             pdf.set_font("Arial", '', 9)
             for hosp, dist in dat["hospitales"]:
-                pdf.cell(120, 6, f" {hosp}", border=1)
+                pdf.cell(120, 6, f" {limpiar_texto(hosp)}", border=1)
                 pdf.cell(70, 6, f" {dist} metros", border=1, align="C", ln=1)
                 
             pdf.ln(4)
             
             # Sección 3: Detalle Completo de las 2 Comisarías Cercanas
             pdf.set_font("Arial", 'B', 10)
-            pdf.cell(190, 6, "3. ANÁLISIS DE COBERTURA DE SEGURIDAD (COMISARÍAS CERCANAS)", ln=True)
+            pdf.cell(190, 6, "3. ANALISIS DE COBERTURA DE SEGURIDAD (COMISARIAS CERCANAS)", ln=True)
             pdf.set_font("Arial", 'B', 9)
-            pdf.cell(120, 5, "Dependencia Policial (Policía de la Ciudad)", border=1, align="C")
+            pdf.cell(120, 5, "Dependencia Policial (Policia de la Ciudad)", border=1, align="C")
             pdf.cell(70, 5, "Distancia Lineal Calculada", border=1, align="C", ln=1)
             
             pdf.set_font("Arial", '', 9)
             for com, dist in dat["comisarias"]:
-                pdf.cell(120, 6, f" {com}", border=1)
+                pdf.cell(120, 6, f" {limpiar_texto(com)}", border=1)
                 pdf.cell(70, 6, f" {dist} metros", border=1, align="C", ln=1)
                 
             pdf.ln(4)
             
             # Sección 4: Observaciones Técnicas Detalladas
             pdf.set_font("Arial", 'B', 10)
-            pdf.cell(190, 6, "4. DICTAMEN TÉCNICO Y OBSERVACIONES DE EVACUACIÓN", ln=True)
+            pdf.cell(190, 6, "4. DICTAMEN TECNICO Y OBSERVACIONES DE EVACUACION", ln=True)
             pdf.set_font("Arial", '', 8.5)
-            pdf.multi_cell(190, 4.5, "El presente documento técnico detalla de forma integral los recursos operativos de respuesta inmediata circundantes al objetivo. Se han validado tanto las vías de acceso perimetral como los tiempos estimados de arribo de unidades sanitarias y móviles policiales de la Ciudad Autónoma de Buenos Aires. Este reporte constituye una herramienta de control normativo y de seguridad bajo potestad del Administrador del Sistema SPPRO.")
+            pdf.multi_cell(190, 4.5, "El presente documento tecnico detalla de forma integral los recursos operativos de respuesta inmediata circundantes al objetivo. Se han validado tanto las vias de acceso perimetral como los tiempos estimados de arribo de unidades sanitarias y moviles policiales de la Ciudad Autonoma de Buenos Aires. Este reporte constituye una herramienta de control normativo y de seguridad bajo potestad del Administrador del Sistema SPPRO.")
             
             # Bloque de Firma y Cierre
             pdf.ln(20)
@@ -182,15 +191,24 @@ elif menu == "📄 Reporte PDF Institucional":
             pdf.cell(100)
             pdf.cell(80, 4, "________________________________________", ln=True, align="C")
             pdf.cell(100)
-            pdf.cell(80, 5, responsable, ln=True, align="C")
+            pdf.cell(80, 5, limpiar_texto(responsable), ln=True, align="C")
             pdf.cell(100)
             pdf.cell(80, 4, "Firma y Sello - Administrador SPPRO", ln=True, align="C")
             
-            archivo_pdf = "reporte_tecnico_detallado.pdf"
-            pdf.output(archivo_pdf)
+            # Generación del PDF en memoria para descarga estable
+            pdf_bytes = pdf.output(dest='S')
+            if isinstance(pdf_bytes, str):
+                pdf_bytes = pdf_bytes.encode('latin-1')
+
+            nombre_archivo = f"Informe_Detallado_{dat['nombre'].replace(' ', '_')}.pdf"
             
-            with open(archivo_pdf, "rb") as f:
-                st.download_button("📥 Descargar Reporte PDF Detallado (B/N)", f, file_name=f"Informe_Detallado_{dat['nombre'].replace(' ', '_')}.pdf")
+            st.success("¡Reporte generado con éxito en memoria!")
+            st.download_button(
+                label="📥 Descargar Reporte PDF Detallado (B/N)",
+                data=pdf_bytes,
+                file_name=nombre_archivo,
+                mime="application/pdf"
+            )
     else:
         st.warning("⚠️ Seleccione y consulte un edificio primero en la solapa '🏢 Edificios & Puntos de Apoyo'.")
 
