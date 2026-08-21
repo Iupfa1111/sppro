@@ -13,7 +13,7 @@ import json
 import tempfile
 import os
 
-st.set_page_config(page_title="SPPRO CABA - Panel Oficial", layout="wide")
+st.set_page_config(page_title="SPPRO by Angel Ibañez - Panel Oficial", layout="wide")
 
 if "users" not in st.session_state: 
     st.session_state["users"] = [{"nombre": "Admin (Propietario)"}]
@@ -33,8 +33,8 @@ if "edificios_dinamicos" not in st.session_state:
 if "historial_auditorias" not in st.session_state:
     st.session_state["historial_auditorias"] = []
 
-# Barra Lateral
-st.sidebar.title("🛡️ SPPRO CABA")
+# Barra Lateral Actualizada
+st.sidebar.title("🛡️ SPPRO by Angel Ibañez")
 st.sidebar.markdown("---")
 clima_actual = obtener_clima_caba()
 st.sidebar.info(f"🌤️ **Clima en Vivo:**\n{clima_actual}")
@@ -132,13 +132,11 @@ if menu == "🏢 Edificios & Puntos de Apoyo":
                 img_bytes = foto.read()
                 if sel not in st.session_state["fotos_edificios"]:
                     st.session_state["fotos_edificios"][sel] = []
-                # Guardamos cada foto con un diccionario indicando si debe incluirse o no por defecto
                 st.session_state["fotos_edificios"][sel].append({"bytes": img_bytes, "incluir": True})
                 st.session_state["entradas_extra"][sel] += 1
                 st.success("¡Acceso y registro fotográfico incorporados exitosamente!")
                 st.rerun()
 
-        # Selección de cuáles fotos incluir en el reporte PDF
         if sel in st.session_state["fotos_edificios"] and st.session_state["fotos_edificios"][sel]:
             st.markdown("#### 🖼️ Seleccionar Fotos para el Reporte PDF:")
             st.write("Marca las casillas de las imágenes que deseas que aparezcan impresas en el informe:")
@@ -149,7 +147,6 @@ if menu == "🏢 Edificios & Puntos de Apoyo":
                     st.image(item["bytes"], caption=f"Acceso verificado #{idx+1}", width=200)
                 with col_chk:
                     st.markdown("<br>", unsafe_allow_html=True)
-                    # Checkbox para alternar inclusión en tiempo real
                     incluir_actual = st.checkbox("Incluir en PDF", value=item["incluir"], key=f"chk_foto_{sel}_{idx}")
                     st.session_state["fotos_edificios"][sel][idx]["incluir"] = incluir_actual
 
@@ -245,7 +242,17 @@ elif menu == "📄 Reporte PDF Institucional":
                 texto = texto.replace(simbolo, "")
             return texto.encode('latin-1', 'ignore').decode('latin-1')
 
-        pdf = FPDF()
+        # Clase personalizada para manejar el pie de página automático con la marca de agua solicitada
+        class PDFReporte(FPDF):
+            def footer(self):
+                # Posición a 1.5 cm del final de la página
+                self.set_y(-15)
+                self.set_font("Arial", 'I', 8)
+                self.set_text_color(120, 120, 120)
+                # Alineado a la derecha como marca de agua / autoría
+                self.cell(190, 10, "SPPRO by Angel Ibañez", 0, 0, "R")
+
+        pdf = PDFReporte()
         pdf.add_page()
         pdf.set_text_color(0, 0, 0)
         
@@ -312,7 +319,6 @@ elif menu == "📄 Reporte PDF Institucional":
         # --- SECCIÓN 4: ANEXO FOTOGRÁFICO FILTRADO POR SELECCIÓN ---
         nombre_actual = dat['nombre']
         if nombre_actual in st.session_state["fotos_edificios"]:
-            # Filtramos únicamente las fotos que tengan 'incluir' en True
             fotos_seleccionadas = [f for f in st.session_state["fotos_edificios"][nombre_actual] if f["incluir"]]
             
             if fotos_seleccionadas:
@@ -329,7 +335,7 @@ elif menu == "📄 Reporte PDF Institucional":
                         tmp_path = tmp_file.name
                     
                     try:
-                        if pdf.get_y() > 220:
+                        if pdf.get_y() > 210:
                             pdf.add_page()
                         
                         pdf.set_font("Arial", 'B', 8)
@@ -359,7 +365,7 @@ elif menu == "📄 Reporte PDF Institucional":
 
         nombre_archivo = f"Informe_Detallado_{dat['nombre'].replace(' ', '_')}.pdf"
         
-        st.success("¡Reporte listo con las fotos seleccionadas!")
+        st.success("¡Reporte listo con tu marca personalizada y fotos seleccionadas!")
         
         st.markdown("### 👁️ Vista Previa del Reporte PDF")
         base64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
