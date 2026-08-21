@@ -12,7 +12,7 @@ import base64
 st.set_page_config(page_title="SPPRO CABA - Panel Oficial", layout="wide")
 
 if "users" not in st.session_state: 
-    st.session_state["users"] = [{"nombre": "Admin (Propietario)", "rol": "Administrador"}]
+    st.session_state["users"] = [{"nombre": "Admin (Propietario)"}]
 
 if "entradas_extra" not in st.session_state:
     st.session_state["entradas_extra"] = {k: 2 for k in edificios_db.keys()}
@@ -56,7 +56,6 @@ def encontrar_multiples_cercanos(coords_ed, db, cantidad=2):
 if menu == "🏢 Edificios & Puntos de Apoyo":
     st.header("🏢 Ficha Técnica y Proximidad de Emergencia en CABA")
     
-    # Pestañas para consultar o agregar un nuevo edificio
     tab_cons, tab_alta = st.tabs(["🔍 Consultar Edificio Existente", "➕ Registrar Nuevo Edificio"])
     
     with tab_alta:
@@ -70,7 +69,6 @@ if menu == "🏢 Edificios & Puntos de Apoyo":
             if submit_edificio:
                 if nuevo_nombre and nueva_dir and nueva_coords:
                     try:
-                        # Validar formato de coordenadas
                         partes = [p.strip() for p in nueva_coords.split(',')]
                         float(partes[0])
                         float(partes[1])
@@ -102,7 +100,6 @@ if menu == "🏢 Edificios & Puntos de Apoyo":
         total_entradas = st.session_state["entradas_extra"][sel]
         col4.metric("Entradas / Salidas", total_entradas)
         
-        # Subida de fotos para registrar entradas y salidas
         st.markdown("### 📷 Carga de Accesos Adicionales")
         foto = st.file_uploader("Subir foto de una nueva entrada o salida del edificio", type=["jpg", "png", "jpeg"])
         if foto is not None:
@@ -112,14 +109,12 @@ if menu == "🏢 Edificios & Puntos de Apoyo":
                 st.success("¡Acceso adicional incorporado exitosamente al sistema!")
                 st.rerun()
 
-        # Cálculo exacto de los 2 hospitales y 2 comisarías más cercanas
         comisarias_cercanas = encontrar_multiples_cercanos(coords_ed, comisarias_db, 2)
         hospitales_cercanos = encontrar_multiples_cercanos(coords_ed, hospitales_db, 2)
 
         st.markdown("---")
         st.subheader("🗺️ Mapa Operativo y Puntos de Apoyo en CABA")
 
-        # --- MAPA INTERACTIVO CON FOLIUM ---
         m = folium.Map(location=coords_ed, zoom_start=15)
 
         folium.Marker(
@@ -161,7 +156,6 @@ if menu == "🏢 Edificios & Puntos de Apoyo":
             for idx, (hosp, dist, _) in enumerate(hospitales_cercanos, 1):
                 st.info(f"**{idx}.** {hosp} — *{dist} metros*")
 
-        # Guardar en sesión para el reporte PDF con estructura segura
         datos_actuales = {
             "nombre": sel, 
             "dir": d['dir'], 
@@ -174,7 +168,6 @@ if menu == "🏢 Edificios & Puntos de Apoyo":
         }
         st.session_state["actual"] = datos_actuales
 
-        # Registrar en el historial de auditorías si no está repetido como último
         if not st.session_state["historial_auditorias"] or st.session_state["historial_auditorias"][-1]["nombre"] != sel:
             st.session_state["historial_auditorias"].append(datos_actuales)
             if len(st.session_state["historial_auditorias"]) > 5:
@@ -185,9 +178,8 @@ if menu == "🏢 Edificios & Puntos de Apoyo":
 elif menu == "📄 Reporte PDF Institucional":
     st.header("📄 Generador de Reporte Técnico Extendido (Blanco y Negro)")
     
-    # Historial rápido de auditorías recientes
     if st.session_state["historial_auditorias"]:
-        st.markdown("### 🕒 Historial de Edificios Consultados Recentemente")
+        st.markdown("### 🕒 Historial de Edificios Consultados Recientemente")
         nombres_historial = [h["nombre"] for h in st.session_state["historial_auditorias"]]
         sel_historial = st.selectbox("Seleccione del historial para cargar sus datos:", nombres_historial)
         if st.button("Cargar desde Historial"):
@@ -202,142 +194,142 @@ elif menu == "📄 Reporte PDF Institucional":
         dat = st.session_state["actual"]
         responsable = st.text_input("Nombre y Apellido del Responsable Técnico Emisor", "Lic. Supervisor Operativo SPPRO")
         
-        if st.button("Generar Reporte PDF Detallado"):
-            def limpiar_texto(texto):
-                if not isinstance(texto, str):
-                    texto = str(texto)
-                for simbolo in ["☀️", "🌤️", "⛅", "☁️", "🌫️", "🌧️", "⛈️", "°"]:
-                    texto = texto.replace(simbolo, "")
-                return texto.encode('latin-1', 'ignore').decode('latin-1')
+        def limpiar_texto(texto):
+            if not isinstance(texto, str):
+                texto = str(texto)
+            for simbolo in ["☀️", "🌤️", "⛅", "☁️", "🌫️", "🌧️", "⛈️", "°"]:
+                texto = texto.replace(simbolo, "")
+            return texto.encode('latin-1', 'ignore').decode('latin-1')
 
-            pdf = FPDF()
-            pdf.add_page()
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_text_color(0, 0, 0)
+        
+        pdf.set_font("Arial", 'B', 14)
+        pdf.cell(190, 7, "SISTEMA DE PROTECCION Y EVALUACION EDILICIA (SPPRO CABA)", ln=True, align="C")
+        pdf.set_font("Arial", 'B', 10)
+        pdf.cell(190, 5, "INFORME TECNICO OPERATIVO DE COBERTURA Y EMERGENCIAS", ln=True, align="C")
+        
+        pdf.ln(3)
+        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+        pdf.ln(4)
+        
+        clima_limpio = limpiar_texto(dat['clima'])
+        pdf.set_font("Arial", 'B', 9)
+        pdf.cell(95, 5, f"Codigo de Auditoria: SPPRO-{datetime.now().strftime('%Y%m%d%H%M')}")
+        pdf.cell(95, 5, f"Condicion Climatica: {clima_limpio}", ln=True, align="R")
+        pdf.cell(190, 5, f"Fecha y Hora de Emision: {dat['fecha']}", ln=True)
+        
+        pdf.ln(3)
+        pdf.set_font("Arial", 'B', 10)
+        pdf.cell(190, 6, "1. DATOS CATASTRALES Y CARACTERISTICAS EDILICIAS", ln=True)
+        pdf.set_font("Arial", '', 9)
+        
+        pdf.cell(50, 6, "Objetivo Evaluado:", border=1)
+        pdf.cell(140, 6, f" {limpiar_texto(dat['nombre'])}", border=1, ln=1)
+        pdf.cell(50, 6, "Ubicacion (Calle y Numero):", border=1)
+        pdf.cell(140, 6, f" {limpiar_texto(dat['dir'])}", border=1, ln=1)
+        pdf.cell(50, 6, "Coordenadas GPS:", border=1)
+        pdf.cell(140, 6, f" {dat['coords']}", border=1, ln=1)
+        pdf.cell(50, 6, "Accesos Habilitados:", border=1)
+        pdf.cell(140, 6, f" {dat['entradas']} entradas y salidas registradas", border=1, ln=1)
+        
+        pdf.ln(4)
+        pdf.set_font("Arial", 'B', 10)
+        pdf.cell(190, 6, "2. ANALISIS DE COOPERACION E INTERVENCION (HOSPITALES Y COMISARIAS)", ln=True)
+        
+        pdf.set_font("Arial", 'B', 9)
+        pdf.cell(190, 5, "Establecimientos Medicos de Salud CABA mas cercanos:", ln=True)
+        pdf.cell(120, 5, "Establecimiento Medico", border=1, align="C")
+        pdf.cell(70, 5, "Distancia Lineal Calculada", border=1, align="C", ln=1)
+        
+        pdf.set_font("Arial", '', 9)
+        for hosp, dist in dat["hospitales"]:
+            pdf.cell(120, 6, f" {limpiar_texto(hosp)}", border=1)
+            pdf.cell(70, 6, f" {dist} metros", border=1, align="C", ln=1)
             
-            pdf.set_text_color(0, 0, 0)
+        pdf.ln(3)
+        pdf.set_font("Arial", 'B', 9)
+        pdf.cell(190, 5, "Dependencias Policiales (Policia de la Ciudad) mas cercanas:", ln=True)
+        pdf.cell(120, 5, "Dependencia Policial", border=1, align="C")
+        pdf.cell(70, 5, "Distancia Lineal Calculada", border=1, align="C", ln=1)
+        
+        pdf.set_font("Arial", '', 9)
+        for com, dist in dat["comisarias"]:
+            pdf.cell(120, 6, f" {limpiar_texto(com)}", border=1)
+            pdf.cell(70, 6, f" {dist} metros", border=1, align="C", ln=1)
             
-            pdf.set_font("Arial", 'B', 14)
-            pdf.cell(190, 7, "SISTEMA DE PROTECCION Y EVALUACION EDILICIA (SPPRO CABA)", ln=True, align="C")
-            pdf.set_font("Arial", 'B', 10)
-            pdf.cell(190, 5, "INFORME TECNICO OPERATIVO DE COBERTURA Y EMERGENCIAS", ln=True, align="C")
-            
-            pdf.ln(3)
-            pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-            pdf.ln(4)
-            
-            clima_limpio = limpiar_texto(dat['clima'])
-            pdf.set_font("Arial", 'B', 9)
-            pdf.cell(95, 5, f"Codigo de Auditoria: SPPRO-{datetime.now().strftime('%Y%m%d%H%M')}")
-            pdf.cell(95, 5, f"Condicion Climatica: {clima_limpio}", ln=True, align="R")
-            pdf.cell(190, 5, f"Fecha y Hora de Emision: {dat['fecha']}", ln=True)
-            
-            pdf.ln(3)
-            
-            pdf.set_font("Arial", 'B', 10)
-            pdf.cell(190, 6, "1. DATOS CATASTRALES Y CARACTERISTICAS EDILICIAS", ln=True)
-            pdf.set_font("Arial", '', 9)
-            
-            pdf.cell(50, 6, "Objetivo Evaluado:", border=1)
-            pdf.cell(140, 6, f" {limpiar_texto(dat['nombre'])}", border=1, ln=1)
-            pdf.cell(50, 6, "Ubicacion (Calle y Numero):", border=1)
-            pdf.cell(140, 6, f" {limpiar_texto(dat['dir'])}", border=1, ln=1)
-            pdf.cell(50, 6, "Coordenadas GPS:", border=1)
-            pdf.cell(140, 6, f" {dat['coords']}", border=1, ln=1)
-            pdf.cell(50, 6, "Accesos Habilitados:", border=1)
-            pdf.cell(140, 6, f" {dat['entradas']} entradas y salidas registradas", border=1, ln=1)
-            
-            pdf.ln(4)
-            
-            pdf.set_font("Arial", 'B', 10)
-            pdf.cell(190, 6, "2. ANALISIS DE COOPERACION E INTERVENCION (HOSPITALES Y COMISARIAS)", ln=True)
-            
-            pdf.set_font("Arial", 'B', 9)
-            pdf.cell(190, 5, "Establecimientos Medicos de Salud CABA mas cercanos:", ln=True)
-            pdf.cell(120, 5, "Establecimiento Medico", border=1, align="C")
-            pdf.cell(70, 5, "Distancia Lineal Calculada", border=1, align="C", ln=1)
-            
-            pdf.set_font("Arial", '', 9)
-            for hosp, dist in dat["hospitales"]:
-                pdf.cell(120, 6, f" {limpiar_texto(hosp)}", border=1)
-                pdf.cell(70, 6, f" {dist} metros", border=1, align="C", ln=1)
-                
-            pdf.ln(3)
-            
-            pdf.set_font("Arial", 'B', 9)
-            pdf.cell(190, 5, "Dependencias Policiales (Policia de la Ciudad) mas cercanas:", ln=True)
-            pdf.cell(120, 5, "Dependencia Policial", border=1, align="C")
-            pdf.cell(70, 5, "Distancia Lineal Calculada", border=1, align="C", ln=1)
-            
-            pdf.set_font("Arial", '', 9)
-            for com, dist in dat["comisarias"]:
-                pdf.cell(120, 6, f" {limpiar_texto(com)}", border=1)
-                pdf.cell(70, 6, f" {dist} metros", border=1, align="C", ln=1)
-                
-            pdf.ln(4)
-            
-            pdf.set_font("Arial", 'B', 10)
-            pdf.cell(190, 6, "3. DICTAMEN TECNICO Y OBSERVACIONES", ln=True)
-            pdf.set_font("Arial", '', 8.5)
-            pdf.multi_cell(190, 4.5, "El presente documento tecnico detalla de forma integral los recursos operativos de respuesta inmediata circundantes al objetivo. Se han validado tanto las vias de acceso perimetral como los tiempos estimados de arribo de unidades sanitarias y moviles policiales de la Ciudad Autonoma de Buenos Aires.")
-            
-            pdf.ln(20)
-            pdf.set_font("Arial", '', 9)
-            pdf.cell(100)
-            pdf.cell(80, 4, "________________________________________", ln=True, align="C")
-            pdf.cell(100)
-            pdf.cell(80, 5, limpiar_texto(responsable), ln=True, align="C")
-            pdf.cell(100)
-            pdf.cell(80, 4, "Firma y Sello - Administrador SPPRO", ln=True, align="C")
-            
-            pdf_bytes = pdf.output(dest='S')
-            if isinstance(pdf_bytes, str):
-                pdf_bytes = pdf_bytes.encode('latin-1')
+        pdf.ln(4)
+        pdf.set_font("Arial", 'B', 10)
+        pdf.cell(190, 6, "3. DICTAMEN TECNICO Y OBSERVACIONES", ln=True)
+        pdf.set_font("Arial", '', 8.5)
+        pdf.multi_cell(190, 4.5, "El presente documento tecnico detalla de forma integral los recursos operativos de respuesta inmediata circundantes al objetivo. Se han validado tanto las vias de acceso perimetral como los tiempos estimados de arribo de unidades sanitarias y moviles policiales de la Ciudad Autonoma de Buenos Aires.")
+        
+        pdf.ln(20)
+        pdf.set_font("Arial", '', 9)
+        pdf.cell(100)
+        pdf.cell(80, 4, "________________________________________", ln=True, align="C")
+        pdf.cell(100)
+        pdf.cell(80, 5, limpiar_texto(responsable), ln=True, align="C")
+        pdf.cell(100)
+        pdf.cell(80, 4, "Firma y Sello - Administrador SPPRO", ln=True, align="C")
+        
+        pdf_output = pdf.output(dest='S')
+        if isinstance(pdf_output, str):
+            pdf_bytes = pdf_output.encode('latin-1')
+        else:
+            pdf_bytes = bytes(pdf_output)
 
-            nombre_archivo = f"Informe_Detallado_{dat['nombre'].replace(' ', '_')}.pdf"
-            
-            st.success("¡Reporte generado con éxito en memoria!")
-            
-            # --- NUEVO: PREVISUALIZACIÓN DEL PDF EN PANTALLA ---
-            st.markdown("### 👁️ Vista Previa del Reporte PDF")
-            base64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
-            pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="500px" type="application/pdf"></iframe>'
-            st.markdown(pdf_display, unsafe_allow_html=True)
-            
-            st.markdown("---")
-            st.download_button(
-                label="Descargar Reporte PDF Detallado (B/N)",
-                data=pdf_bytes,
-                file_name=nombre_archivo,
-                mime="application/pdf"
-            )
+        nombre_archivo = f"Informe_Detallado_{dat['nombre'].replace(' ', '_')}.pdf"
+        
+        st.success("¡Reporte listo para previsualizar o descargar!")
+        
+        st.markdown("### 👁️ Vista Previa del Reporte PDF")
+        base64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
+        pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="500px" type="application/pdf"></iframe>'
+        st.markdown(pdf_display, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        st.download_button(
+            label="Descargar Reporte PDF Detallado (B/N)",
+            data=pdf_bytes,
+            file_name=nombre_archivo,
+            mime="application/pdf"
+        )
     else:
         st.warning("⚠️ Seleccione y consulte un edificio primero en la solapa '🏢 Edificios & Puntos de Apoyo'.")
 
 
 # --- 3. GESTIÓN DE USUARIOS ---
 elif menu == "👥 Gestión de Usuarios":
-    st.header("👥 Panel de Control de Usuarios (Administrador)")
+    st.header("👥 Panel de Control de Usuarios")
     
     with st.form("form_alta"):
         nombre_u = st.text_input("Nombre del Nuevo Usuario")
-        rol_u = st.selectbox("Rol", ["Inspector", "Operador Zonal", "Auditor"])
         if st.form_submit_button("Registrar Usuario") and nombre_u:
-            st.session_state["users"].append({"nombre": nombre_u, "rol": rol_u})
+            st.session_state["users"].append({"nombre": nombre_u})
             st.success("Usuario agregado con éxito.")
             st.rerun()
             
     st.markdown("### 📋 Usuarios Activos")
     for i, u in enumerate(st.session_state["users"]):
-        c1, c2, c3 = st.columns([0.5, 0.3, 0.2])
+        c1, c2 = st.columns([0.8, 0.2])
         c1.write(f"👤 **{u['nombre']}**")
-        c2.write(f"🏷️ _{u['rol']}_")
-        if "Administrador" not in u['rol']:
-            if c3.button("🗑️ Borrar", key=f"del_{i}"):
+        if "Administrador" not in u['nombre']:
+            if c2.button("🗑️ Borrar", key=f"del_{i}"):
                 st.session_state["users"].pop(i)
                 st.rerun()
 
 
 # --- 4. COMPARTIR APLICACIÓN ---
 elif menu == "🌐 Compartir Aplicación":
-    st.header("🌐 Link de Acceso en Línea")
-    st.write("Sube tus archivos a un repositorio de GitHub y conéctalos en [Streamlit Cloud](https://share.streamlit.io/) para generar tu link público.")
-    st.info("🔗 **URL de ejemplo:** `https://sppro-caba-oficial.streamlit.app`")
+    st.header("🌐 Enlace y Compartir Aplicación")
+    st.write("Puedes compartir esta herramienta de forma pública mediante los siguientes pasos:")
+    
+    st.markdown("""
+    1. **Sube tu código a GitHub:** Asegúrate de tener los archivos `aplicación.py`, `datos.py` y `clima.py` en un repositorio público.
+    2. **Conéctalo en Streamlit Cloud:** Ingresa a [share.streamlit.io](https://share.streamlit.io/) con tu cuenta y despliega el repositorio.
+    3. **Tu Enlace Público:** Una vez desplegado, Streamlit te asignará una URL oficial que podrás compartir con cualquier equipo u operador.
+    """)
+    
+    st.info("🔗 **Ejemplo de URL Pública:** `https://sppro-caba.streamlit.app`")
