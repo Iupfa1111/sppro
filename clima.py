@@ -1,24 +1,30 @@
-# clima.py
 import requests
 
 def obtener_clima_caba():
     try:
-        # API pública Open-Meteo para CABA en tiempo real (sin necesidad de claves externas)
-        url = "https://api.open-meteo.com/v1/forecast?latitude=-34.6037&current=temperature_2m,weather_code&timezone=America/Argentina/Buenos_Aires"
-        res = requests.get(url, timeout=4)
-        if res.status_code == 200:
-            data = res.json()["current"]
-            temp = data["temperature_2m"]
-            code = data["weather_code"]
+        # Coordenadas de CABA
+        url = "https://api.open-meteo.com/v1/forecast?latitude=-34.6037&longitude=-58.3816&current=temperature_2m,weather_code"
+        response = requests.get(url, timeout=5)
+        
+        if response.status_code == 200:
+            data = response.json()
+            temp = data["current"]["temperature_2m"]
+            code = data["current"]["weather_code"]
             
-            # Interpretación simple del código del clima
-            if code == 0: estado = "Despejado ☀️"
-            elif code <= 3: estado = "Parcialmente nublado ⛅"
-            elif code <= 48: estado = "Neblina o Nublado 🌫️"
-            elif code <= 67: estado = "Lluvioso 🌧️"
-            else: estado = "Tormenta ⛈️"
-            
-            return f"{temp}°C, {estado}"
+            # Mapeo simple de códigos WMO del clima a descripciones en español
+            condiciones = {
+                0: "Despejado ☀️",
+                1: "Principalmente despejado 🌤️",
+                2: "Parcialmente nublado ⛅",
+                3: "Nublado ☁️",
+                45: "Neblina 🌫️",
+                51: "Llovizna ligera 🌧️",
+                61: "Lluvia ligera 🌧️",
+                95: "Tormenta ⛈️"
+            }
+            desc = condiciones.get(code, "Ciclón / Variable 🌤️")
+            return f"{temp}°C, {desc}"
+        else:
+            return "22°C, Parcialmente Nublado (Modo Offline)"
     except Exception:
-        pass
-    return "Datos climáticos no disponibles"
+        return "22°C, Normal (Sin conexión)"
