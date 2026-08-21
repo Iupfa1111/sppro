@@ -15,26 +15,53 @@ import os
 
 st.set_page_config(page_title="SPPRO by Angel Ibañez - Panel Oficial", layout="wide")
 
+# Control de usuarios autorizados (Lista blanca inicial)
 if "users" not in st.session_state: 
-    st.session_state["users"] = [{"nombre": "Admin (Propietario)"}]
+    st.session_state["users"] = [{"nombre": "Angel Ibañez (Admin)"}, {"nombre": "Operador Autorizado"}]
 
 if "entradas_extra" not in st.session_state:
     st.session_state["entradas_extra"] = {k: 2 for k in edificios_db.keys()}
 
-# Almacén de fotos por edificio registrado
 if "fotos_edificios" not in st.session_state:
     st.session_state["fotos_edificios"] = {k: [] for k in edificios_db.keys()}
 
-# Base de datos dinámica para permitir agregar edificios nuevos en ejecución
 if "edificios_dinamicos" not in st.session_state:
     st.session_state["edificios_dinamicos"] = edificios_db.copy()
 
-# Historial de auditorías recientes en sesión
 if "historial_auditorias" not in st.session_state:
     st.session_state["historial_auditorias"] = []
 
-# Barra Lateral Actualizada
+# Control de inicio de sesión simple por autorización
+if "usuario_logueado" not in st.session_state:
+    st.session_state["usuario_logueado"] = None
+
+# --- PANTALLA DE ACCESO RESTRINGIDO POR AUTORIZACIÓN ---
+if st.session_state["usuario_logueado"] is None:
+    st.title("🛡️ SPPRO by Angel Ibañez - Acceso Restringido")
+    st.write("Esta aplicación se encuentra bajo acceso controlado. Ingrese su nombre exacto autorizado para ingresar:")
+    
+    nombres_autorizados = [u["nombre"] for u in st.session_state["users"]]
+    
+    with st.form("form_login"):
+        input_usuario = st.selectbox("Seleccione o escriba su usuario autorizado", options=[""] + nombres_autorizados)
+        btn_ingresar = st.form_submit_button("Ingresar al Sistema")
+        
+        if btn_ingresar:
+            if input_usuario in nombres_autorizados:
+                st.session_state["usuario_logueado"] = input_usuario
+                st.success(f"¡Bienvenido, {input_usuario}!")
+                st.rerun()
+            else:
+                st.error("Acceso denegado. Su usuario no figura en la lista de autorizados por el Administrador.")
+    st.stop()
+
+# --- APLICACIÓN PRINCIPAL (UNA VEZ AUTORIZADO) ---
 st.sidebar.title("🛡️ SPPRO by Angel Ibañez")
+st.sidebar.write(f"👤 Operador: **{st.session_state['usuario_logueado']}**")
+if st.sidebar.button("Cerrar Sesión"):
+    st.session_state["usuario_logueado"] = None
+    st.rerun()
+
 st.sidebar.markdown("---")
 clima_actual = obtener_clima_caba()
 st.sidebar.info(f"🌤️ **Clima en Vivo:**\n{clima_actual}")
@@ -60,7 +87,6 @@ def encontrar_multiples_cercanos(coords_ed, db, cantidad=2):
     return distancias[:cantidad]
 
 def obtener_coordenadas_por_direccion(direccion):
-    """Consulta automática de coordenadas geográficas usando OpenStreetMap Nominatim"""
     try:
         query = f"{direccion}, Buenos Aires, Argentina"
         url = f"https://nominatim.openstreetmap.org/search?q={urllib.request.quote(query)}&format=json&limit=1"
@@ -197,6 +223,9 @@ if menu == "🏢 Edificios & Puntos de Apoyo":
             for idx, (hosp, dist, _) in enumerate(hospitales_cercanos, 1):
                 st.info(f"**{idx}.** {hosp} — *{dist} metros*")
 
+        # Generamos la fecha exacta sincronizada para evitar desfases
+        fecha_exacta = datetime.now().strftime('%d/%m/%Y %H:%M')
+
         datos_actuales = {
             "nombre": sel, 
             "dir": d['dir'], 
@@ -205,7 +234,7 @@ if menu == "🏢 Edificios & Puntos de Apoyo":
             "comisarias": [(com, dist) for com, dist, _ in comisarias_cercanas], 
             "hospitales": [(hosp, dist) for hosp, dist, _ in hospitales_cercanos],
             "clima": clima_actual, 
-            "fecha": datetime.now().strftime('%d/%m/%Y %H:%M')
+            "fecha": fecha_exacta
         }
         st.session_state["actual"] = datos_actuales
 
@@ -233,7 +262,7 @@ elif menu == "📄 Reporte PDF Institucional":
 
     if "actual" in st.session_state:
         dat = st.session_state["actual"]
-        responsable = st.text_input("Nombre y Apellido del Responsable Técnico Emisor", "Lic. Supervisor Operativo SPPRO")
+        responsable = st.text_input("Nombre y Apellido del Responsable Técnico Emisor", f"Lic. {st.session_state['usuario_logueado']}")
         
         def limpiar_texto(texto):
             if not isinstance(texto, str):
@@ -242,14 +271,11 @@ elif menu == "📄 Reporte PDF Institucional":
                 texto = texto.replace(simbolo, "")
             return texto.encode('latin-1', 'ignore').decode('latin-1')
 
-        # Clase personalizada para manejar el pie de página automático con la marca de agua solicitada
         class PDFReporte(FPDF):
             def footer(self):
-                # Posición a 1.5 cm del final de la página
                 self.set_y(-15)
                 self.set_font("Arial", 'I', 8)
                 self.set_text_color(120, 120, 120)
-                # Alineado a la derecha como marca de agua / autoría
                 self.cell(190, 10, "SPPRO by Angel Ibañez", 0, 0, "R")
 
         pdf = PDFReporte()
@@ -269,6 +295,7 @@ elif menu == "📄 Reporte PDF Institucional":
         pdf.set_font("Arial", 'B', 9)
         pdf.cell(95, 5, f"Codigo de Auditoria: SPPRO-{datetime.now().strftime('%Y%m%d%H%M')}")
         pdf.cell(95, 5, f"Condicion Climatica: {clima_limpio}", ln=True, align="R")
+        # Hora estricta sincronizada con dat['fecha']
         pdf.cell(190, 5, f"Fecha y Hora de Emision: {dat['fecha']}", ln=True)
         
         pdf.ln(3)
@@ -383,23 +410,27 @@ elif menu == "📄 Reporte PDF Institucional":
         st.warning("⚠️ Seleccione y consulte un edificio primero en la solapa '🏢 Edificios & Puntos de Apoyo'.")
 
 
-# --- 3. GESTIÓN DE USUARIOS ---
+# --- 3. GESTIÓN DE USUARIOS (AUTORIZACIÓN) ---
 elif menu == "👥 Gestión de Usuarios":
-    st.header("👥 Panel de Control de Usuarios")
+    st.header("👥 Panel de Control de Usuarios Autorizados")
+    st.write("Agrega aquí los nombres de las personas a las que desees autorizar para que puedan ingresar a la aplicación mediante el enlace público.")
     
     with st.form("form_alta"):
-        nombre_u = st.text_input("Nombre del Nuevo Usuario")
-        if st.form_submit_button("Registrar Usuario") and nombre_u:
-            st.session_state["users"].append({"nombre": nombre_u})
-            st.success("Usuario agregado con éxito.")
-            st.rerun()
+        nombre_u = st.text_input("Nombre y Apellido del Nuevo Operador Autorizado")
+        if st.form_submit_button("Autorizar Usuario") and nombre_u:
+            if not any(u["nombre"] == nombre_u for u in st.session_state["users"]):
+                st.session_state["users"].append({"nombre": nombre_u})
+                st.success(f"¡Usuario '{nombre_u}' autorizado con éxito!")
+                st.rerun()
+            else:
+                st.warning("El usuario ya se encuentra registrado en la lista.")
             
-    st.markdown("### 📋 Usuarios Activos")
+    st.markdown("### 📋 Operadores con Acceso Permitido")
     for i, u in enumerate(st.session_state["users"]):
         c1, c2 = st.columns([0.8, 0.2])
         c1.write(f"👤 **{u['nombre']}**")
-        if "Administrador" not in u['nombre']:
-            if c2.button("🗑️ Borrar", key=f"del_{i}"):
+        if "Angel Ibañez" not in u['nombre']:
+            if c2.button("🗑️ Revocar", key=f"del_{i}"):
                 st.session_state["users"].pop(i)
                 st.rerun()
 
@@ -407,12 +438,12 @@ elif menu == "👥 Gestión de Usuarios":
 # --- 4. COMPARTIR APLICACIÓN ---
 elif menu == "🌐 Compartir Aplicación":
     st.header("🌐 Enlace y Compartir Aplicación")
-    st.write("Puedes compartir esta herramienta de forma pública mediante los siguientes pasos:")
+    st.write("Cualquier persona que reciba tu enlace podrá abrir la app, **pero solo podrá ingresar si previamente agregaste su nombre en la solapa de 'Gestión de Usuarios'**.")
     
     st.markdown("""
-    1. **Sube tu código a GitHub:** Asegúrate de tener los archivos `aplicación.py`, `datos.py` y `clima.py` en un repositorio público.
-    2. **Conéctalo en Streamlit Cloud:** Ingresa a [share.streamlit.io](https://share.streamlit.io/) con tu cuenta y despliega el repositorio.
-    3. **Tu Enlace Público:** Una vez desplegado, Streamlit te asignará una URL oficial que podrás compartir con cualquier equipo u operador.
+    1. **Sube tu código actualizado a GitHub:** Asegúrate de tener los archivos `aplicación.py`, `datos.py` y `clima.py`.
+    2. **Despliega en Streamlit Cloud:** Ingresa a [share.streamlit.io](https://share.streamlit.io/) y conecta tu repositorio.
+    3. **Comparte tu Enlace:** Pásale el link generado a tus colaboradores.
     """)
     
-    st.info("🔗 **Ejemplo de URL Pública:** `https://sppro-caba.streamlit.app`")
+    st.info("🔗 **Ejemplo de Enlace Público:** `https://sppro-caba.streamlit.app`")
