@@ -8,6 +8,10 @@ from streamlit_folium import st_folium
 from datos import edificios_db, comisarias_db, hospitales_db
 from clima import obtener_clima_caba
 import base64
+import urllib.request
+import json
+import tempfile
+import os
 
 st.set_page_config(page_title="SPPRO CABA - Panel Oficial", layout="wide")
 
@@ -16,6 +20,10 @@ if "users" not in st.session_state:
 
 if "entradas_extra" not in st.session_state:
     st.session_state["entradas_extra"] = {k: 2 for k in edificios_db.keys()}
+
+# Almacén de fotos por edificio registrado
+if "fotos_edificios" not in st.session_state:
+    st.session_state["fotos_edificios"] = {k: [] for k in edificios_db.keys()}
 
 # Base de datos dinámica para permitir agregar edificios nuevos en ejecución
 if "edificios_dinamicos" not in st.session_state:
@@ -51,6 +59,22 @@ def encontrar_multiples_cercanos(coords_ed, db, cantidad=2):
     distancias.sort(key=lambda x: x[1])
     return distancias[:cantidad]
 
+def obtener_coordenadas_por_direccion(direccion):
+    """Consulta automática de coordenadas geográficas usando OpenStreetMap Nominatim"""
+    try:
+        query = f"{direccion}, Buenos Aires, Argentina"
+        url = f"https://nominatim.openstreetmap.org/search?q={urllib.request.quote(query)}&format=json&limit=1"
+        req = urllib.request.Request(url, headers={'User-Agent': 'SPPRO-CABA-App'})
+        with urllib.request.urlopen(req) as response:
+            data = json.loads(response.read().decode())
+            if data:
+                lat = float(data[0]['lat'])
+                lon = float(data[0]['lon'])
+                return f"{lat}, {lon}"
+    except Exception:
+        pass
+    return "-34.6037, -58.3816"
+
 
 # --- 1. EDIFICIOS Y CATASTRO ---
 if menu == "🏢 Edificios & Puntos de Apoyo":
@@ -60,31 +84,29 @@ if menu == "🏢 Edificios & Puntos de Apoyo":
     
     with tab_alta:
         st.subheader("Agregar Nuevo Objetivo Catastral")
+        st.write("Ingresa el nombre y el domicilio. La aplicación calculará las coordenadas de forma automática.")
+        
         with st.form("form_nuevo_edificio"):
             nuevo_nombre = st.text_input("Nombre / Identificación del Edificio")
-            nueva_dir = st.text_input("Dirección (Ej: Av. Corrientes 1500)")
-            nueva_coords = st.text_input("Coordenadas GPS (Latitud, Longitud)", "-34.6037, -58.3816")
+            nueva_dir = st.text_input("Domicilio (Ej: Av. Corrientes 1500, CABA)")
             
-            submit_edificio = st.form_submit_button("Guardar e Incorporar Edificio")
+            submit_edificio = st.form_submit_button("Buscar Coordenadas y Registrar Edificio")
             if submit_edificio:
-                if nuevo_nombre and nueva_dir and nueva_coords:
-                    try:
-                        partes = [p.strip() for p in nueva_coords.split(',')]
-                        float(partes[0])
-                        float(partes[1])
+                if nuevo_nombre and nueva_dir:
+                    coords_encontradas = obtener_coordenadas_por_direccion(nueva_dir)
+                    
+                    st.session_state["edificios_dinamicos"][nuevo_nombre] = {
+                        "dir": nueva_dir,
+                        "coords": coords_encontradas
+                    }
+                    if nuevo_nombre not in st.session_state["entradas_extra"]:
+                        st.session_state["entradas_extra"][nuevo_nombre] = 2
+                    if nuevo_nombre not in st.session_state["fotos_edificios"]:
+                        st.session_state["fotos_edificios"][nuevo_nombre] = []
                         
-                        st.session_state["edificios_dinamicos"][nuevo_nombre] = {
-                            "dir": nueva_dir,
-                            "coords": nueva_coords
-                        }
-                        if nuevo_nombre not in st.session_state["entradas_extra"]:
-                            st.session_state["entradas_extra"][nuevo_nombre] = 2
-                            
-                        st.success(f"¡El edificio '{nuevo_nombre}' fue agregado con éxito a la base de datos de la sesión!")
-                    except Exception:
-                        st.error("Error en el formato de las coordenadas. Deben ser números separados por coma (ej: -34.6037, -58.3816).")
+                    st.success(f"¡El edificio '{nuevo_nombre}' fue incorporado con éxito! Coordenadas asignadas automáticamente: {coords_encontradas}")
                 else:
-                    st.warning("Por favor, completa todos los campos.")
+                    st.warning("Por favor, completa el nombre y el domicilio.")
 
     with tab_cons:
         db_activa = st.session_state["edificios_dinamicos"]
@@ -95,19 +117,41 @@ if menu == "🏢 Edificios & Puntos de Apoyo":
         st.markdown("---")
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("Calle de Ubicación", d['dir'].split()[0])
-        col2.metric("Altura Catastral", d['dir'].split()[-1] if any(c.isdigit() for c in d['dir']) else "S/N")
+        col2.metric("Domicilio Completo", d['dir'])
         col3.metric("Coordenadas Geográficas", d['coords'])
         total_entradas = st.session_state["entradas_extra"][sel]
         col4.metric("Entradas / Salidas", total_entradas)
         
-        st.markdown("### 📷 Carga de Accesos Adicionales")
-        foto = st.file_uploader("Subir foto de una nueva entrada o salida del edificio", type=["jpg", "png", "jpeg"])
+        # --- GESTIÓN Y CARGA DE FOTOS DE ACCESOS ---
+        st.markdown("### 📷 Verificación y Carga de Entradas / Salidas")
+        st.write("Sube fotografías de los accesos perimetrales verificados en el terreno:")
+        
+        foto = st.file_uploader(f"Subir imagen de acceso para {sel}", type=["jpg", "png", "jpeg"], key=f"uploader_{sel}")
         if foto is not None:
-            st.image(foto, caption="Evidencia fotográfica aportada", width=300)
-            if st.button("Confirmar y Registrar Acceso"):
+            if st.button("Confirmar y Guardar Imagen de Acceso"):
+                img_bytes = foto.read()
+                if sel not in st.session_state["fotos_edificios"]:
+                    st.session_state["fotos_edificios"][sel] = []
+                # Guardamos cada foto con un diccionario indicando si debe incluirse o no por defecto
+                st.session_state["fotos_edificios"][sel].append({"bytes": img_bytes, "incluir": True})
                 st.session_state["entradas_extra"][sel] += 1
-                st.success("¡Acceso adicional incorporado exitosamente al sistema!")
+                st.success("¡Acceso y registro fotográfico incorporados exitosamente!")
                 st.rerun()
+
+        # Selección de cuáles fotos incluir en el reporte PDF
+        if sel in st.session_state["fotos_edificios"] and st.session_state["fotos_edificios"][sel]:
+            st.markdown("#### 🖼️ Seleccionar Fotos para el Reporte PDF:")
+            st.write("Marca las casillas de las imágenes que deseas que aparezcan impresas en el informe:")
+            
+            for idx, item in enumerate(st.session_state["fotos_edificios"][sel]):
+                col_img, col_chk = st.columns([0.7, 0.3])
+                with col_img:
+                    st.image(item["bytes"], caption=f"Acceso verificado #{idx+1}", width=200)
+                with col_chk:
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    # Checkbox para alternar inclusión en tiempo real
+                    incluir_actual = st.checkbox("Incluir en PDF", value=item["incluir"], key=f"chk_foto_{sel}_{idx}")
+                    st.session_state["fotos_edificios"][sel][idx]["incluir"] = incluir_actual
 
         comisarias_cercanas = encontrar_multiples_cercanos(coords_ed, comisarias_db, 2)
         hospitales_cercanos = encontrar_multiples_cercanos(coords_ed, hospitales_db, 2)
@@ -265,7 +309,40 @@ elif menu == "📄 Reporte PDF Institucional":
         pdf.set_font("Arial", '', 8.5)
         pdf.multi_cell(190, 4.5, "El presente documento tecnico detalla de forma integral los recursos operativos de respuesta inmediata circundantes al objetivo. Se han validado tanto las vias de acceso perimetral como los tiempos estimados de arribo de unidades sanitarias y moviles policiales de la Ciudad Autonoma de Buenos Aires.")
         
-        pdf.ln(20)
+        # --- SECCIÓN 4: ANEXO FOTOGRÁFICO FILTRADO POR SELECCIÓN ---
+        nombre_actual = dat['nombre']
+        if nombre_actual in st.session_state["fotos_edificios"]:
+            # Filtramos únicamente las fotos que tengan 'incluir' en True
+            fotos_seleccionadas = [f for f in st.session_state["fotos_edificios"][nombre_actual] if f["incluir"]]
+            
+            if fotos_seleccionadas:
+                pdf.ln(5)
+                pdf.set_font("Arial", 'B', 10)
+                pdf.cell(190, 6, "4. ANEXO DE EVIDENCIAS FOTOGRAFICAS SELECCIONADAS", ln=True)
+                pdf.set_font("Arial", '', 8.5)
+                pdf.cell(190, 5, "Registro visual de accesos perimetrales seleccionados para este informe:", ln=True)
+                pdf.ln(2)
+
+                for idx, item in enumerate(fotos_seleccionadas):
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp_file:
+                        tmp_file.write(item["bytes"])
+                        tmp_path = tmp_file.name
+                    
+                    try:
+                        if pdf.get_y() > 220:
+                            pdf.add_page()
+                        
+                        pdf.set_font("Arial", 'B', 8)
+                        pdf.cell(190, 5, f"Evidencia Fotografica Seleccionada #{idx + 1}", ln=True)
+                        pdf.image(tmp_path, x=65, w=80)
+                        pdf.ln(5)
+                    except Exception:
+                        pass
+                    finally:
+                        if os.path.exists(tmp_path):
+                            os.unlink(tmp_path)
+
+        pdf.ln(10)
         pdf.set_font("Arial", '', 9)
         pdf.cell(100)
         pdf.cell(80, 4, "________________________________________", ln=True, align="C")
@@ -282,7 +359,7 @@ elif menu == "📄 Reporte PDF Institucional":
 
         nombre_archivo = f"Informe_Detallado_{dat['nombre'].replace(' ', '_')}.pdf"
         
-        st.success("¡Reporte listo para previsualizar o descargar!")
+        st.success("¡Reporte listo con las fotos seleccionadas!")
         
         st.markdown("### 👁️ Vista Previa del Reporte PDF")
         base64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
