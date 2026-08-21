@@ -7,6 +7,7 @@ import folium
 from streamlit_folium import st_folium
 from datos import edificios_db, comisarias_db, hospitales_db
 from clima import obtener_clima_caba
+import base64
 
 st.set_page_config(page_title="SPPRO CABA - Panel Oficial", layout="wide")
 
@@ -15,6 +16,14 @@ if "users" not in st.session_state:
 
 if "entradas_extra" not in st.session_state:
     st.session_state["entradas_extra"] = {k: 2 for k in edificios_db.keys()}
+
+# Base de datos dinámica para permitir agregar edificios nuevos en ejecución
+if "edificios_dinamicos" not in st.session_state:
+    st.session_state["edificios_dinamicos"] = edificios_db.copy()
+
+# Historial de auditorías recientes en sesión
+if "historial_auditorias" not in st.session_state:
+    st.session_state["historial_auditorias"] = []
 
 # Barra Lateral
 st.sidebar.title("🛡️ SPPRO CABA")
@@ -47,100 +56,148 @@ def encontrar_multiples_cercanos(coords_ed, db, cantidad=2):
 if menu == "🏢 Edificios & Puntos de Apoyo":
     st.header("🏢 Ficha Técnica y Proximidad de Emergencia en CABA")
     
-    sel = st.selectbox("Seleccione el Edificio (Orden Alfabético)", sorted(edificios_db.keys()))
-    d = edificios_db[sel]
-    coords_ed = [float(x) for x in d['coords'].split(',')]
+    # Pestañas para consultar o agregar un nuevo edificio
+    tab_cons, tab_alta = st.tabs(["🔍 Consultar Edificio Existente", "➕ Registrar Nuevo Edificio"])
     
-    st.markdown("---")
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Calle de Ubicación", d['dir'].split()[0])
-    col2.metric("Altura Catastral", d['dir'].split()[-1] if any(c.isdigit() for c in d['dir']) else "S/N")
-    col3.metric("Coordenadas Geográficas", d['coords'])
-    total_entradas = st.session_state["entradas_extra"][sel]
-    col4.metric("Entradas / Salidas", total_entradas)
-    
-    # Subida de fotos para registrar entradas y salidas
-    st.markdown("### 📷 Carga de Accesos Adicionales")
-    foto = st.file_uploader("Subir foto de una nueva entrada o salida del edificio", type=["jpg", "png", "jpeg"])
-    if foto is not None:
-        st.image(foto, caption="Evidencia fotográfica aportada", width=300)
-        if st.button("Confirmar y Registrar Acceso"):
-            st.session_state["entradas_extra"][sel] += 1
-            st.success("¡Acceso adicional incorporado exitosamente al sistema!")
-            st.rerun()
-
-    # Cálculo exacto de los 2 hospitales y 2 comisarías más cercanas (ahora guardamos también las coordenadas)
-    comisarias_cercanas = encontrar_multiples_cercanos(coords_ed, comisarias_db, 2)
-    hospitales_cercanos = encontrar_multiples_cercanos(coords_ed, hospitales_db, 2)
-
-    st.markdown("---")
-    st.subheader("🗺️ Mapa Operativo y Puntos de Apoyo en CABA")
-
-    # --- MAPA INTERACTIVO CON FOLIUM ---
-    m = folium.Map(location=coords_ed, zoom_start=15)
-
-    # Marcador del Edificio Principal (Azul)
-    folium.Marker(
-        location=coords_ed,
-        popup=f"<b>{sel}</b><br>{d['dir']}",
-        tooltip="Objetivo Evaluado",
-        icon=folium.Icon(color="blue", icon="building", prefix="fa")
-    ).add_to(m)
-
-    # Marcadores de Comisarías (Rojo)
-    for com, dist, coords_com in comisarias_cercanas:
-        folium.Marker(
-            location=[float(coords_com[0]), float(coords_com[1])],
-            popup=f"<b>Comisaría:</b> {com}<br>Distancia: {dist}m",
-            tooltip=f"Comisaría: {com} ({dist}m)",
-            icon=folium.Icon(color="red", icon="shield", prefix="fa")
-        ).add_to(m)
-
-    # Marcadores de Hospitales (Verde)
-    for hosp, dist, coords_hosp in hospitales_cercanos:
-        folium.Marker(
-            location=[float(coords_hosp[0]), float(coords_hosp[1])],
-            popup=f"<b>Hospital:</b> {hosp}<br>Distancia: {dist}m",
-            tooltip=f"Hospital: {hosp} ({dist}m)",
-            icon=folium.Icon(color="green", icon="hospital-o", prefix="fa")
-        ).add_to(m)
-
-    # Renderizar el mapa en Streamlit
-    st_folium(m, width=700, height=450)
-
-    st.markdown("---")
-    st.subheader("🚨 Detalle de Puntos de Apoyo Cercanos")
-    
-    col_c, col_h = st.columns(2)
-    with col_c:
-        st.markdown("#### 👮 Comisarías Más Cercanas")
-        for idx, (com, dist, _) in enumerate(comisarias_cercanas, 1):
-            st.info(f"**{idx}.** {com} — *{dist} metros*")
+    with tab_alta:
+        st.subheader("Agregar Nuevo Objetivo Catastral")
+        with st.form("form_nuevo_edificio"):
+            nuevo_nombre = st.text_input("Nombre / Identificación del Edificio")
+            nueva_dir = st.text_input("Dirección (Ej: Av. Corrientes 1500)")
+            nueva_coords = st.text_input("Coordenadas GPS (Latitud, Longitud)", "-34.6037, -58.3816")
             
-    with col_h:
-        st.markdown("#### 🏥 Hospitales Más Cercanos")
-        for idx, (hosp, dist, _) in enumerate(hospitales_cercanos, 1):
-            st.info(f"**{idx}.** {hosp} — *{dist} metros*")
+            submit_edificio = st.form_submit_button("Guardar e Incorporar Edificio")
+            if submit_edificio:
+                if nuevo_nombre and nueva_dir and nueva_coords:
+                    try:
+                        # Validar formato de coordenadas
+                        partes = [p.strip() for p in nueva_coords.split(',')]
+                        float(partes[0])
+                        float(partes[1])
+                        
+                        st.session_state["edificios_dinamicos"][nuevo_nombre] = {
+                            "dir": nueva_dir,
+                            "coords": nueva_coords
+                        }
+                        if nuevo_nombre not in st.session_state["entradas_extra"]:
+                            st.session_state["entradas_extra"][nuevo_nombre] = 2
+                            
+                        st.success(f"¡El edificio '{nuevo_nombre}' fue agregado con éxito a la base de datos de la sesión!")
+                    except Exception:
+                        st.error("Error en el formato de las coordenadas. Deben ser números separados por coma (ej: -34.6037, -58.3816).")
+                else:
+                    st.warning("Por favor, completa todos los campos.")
 
-    # Guardar en sesión para el reporte PDF (limpiando las coordenadas para que mantenga el formato original)
-    st.session_state["actual"] = {
-        "nombre": sel, "dir": d['dir'], "coords": d['coords'], "entradas": total_entradas,
-        "comisarias": [(c[0], c[1]) for c in comisarias_cercanas], 
-        "hospitales": [(h[0], h[1]) for h[2] in hospitales_cercanos], # Ajustado para conservar nombre y distancia
-        "clima": clima_actual, "fecha": datetime.now().strftime('%d/%m/%Y %H:%M')
-    }
+    with tab_cons:
+        db_activa = st.session_state["edificios_dinamicos"]
+        sel = st.selectbox("Seleccione el Edificio (Orden Alfabético)", sorted(db_activa.keys()))
+        d = db_activa[sel]
+        coords_ed = [float(x) for x in d['coords'].split(',')]
+        
+        st.markdown("---")
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Calle de Ubicación", d['dir'].split()[0])
+        col2.metric("Altura Catastral", d['dir'].split()[-1] if any(c.isdigit() for c in d['dir']) else "S/N")
+        col3.metric("Coordenadas Geográficas", d['coords'])
+        total_entradas = st.session_state["entradas_extra"][sel]
+        col4.metric("Entradas / Salidas", total_entradas)
+        
+        # Subida de fotos para registrar entradas y salidas
+        st.markdown("### 📷 Carga de Accesos Adicionales")
+        foto = st.file_uploader("Subir foto de una nueva entrada o salida del edificio", type=["jpg", "png", "jpeg"])
+        if foto is not None:
+            st.image(foto, caption="Evidencia fotográfica aportada", width=300)
+            if st.button("Confirmar y Registrar Acceso"):
+                st.session_state["entradas_extra"][sel] += 1
+                st.success("¡Acceso adicional incorporado exitosamente al sistema!")
+                st.rerun()
 
-# Corrección segura para la estructura de tu tupla en hospitales dentro de la sesión:
-# (Nota: Aseguramos que los datos guarden solo (nombre, distancia) para el PDF)
-if "actual" in st.session_state:
-    st.session_state["actual"]["hospitales"] = [(hosp, dist) for hosp, dist, _ in hospitales_cercanos]
-    st.session_state["actual"]["comisarias"] = [(com, dist) for com, dist, _ in comisarias_cercanas]
+        # Cálculo exacto de los 2 hospitales y 2 comisarías más cercanas
+        comisarias_cercanas = encontrar_multiples_cercanos(coords_ed, comisarias_db, 2)
+        hospitales_cercanos = encontrar_multiples_cercanos(coords_ed, hospitales_db, 2)
+
+        st.markdown("---")
+        st.subheader("🗺️ Mapa Operativo y Puntos de Apoyo en CABA")
+
+        # --- MAPA INTERACTIVO CON FOLIUM ---
+        m = folium.Map(location=coords_ed, zoom_start=15)
+
+        folium.Marker(
+            location=coords_ed,
+            popup=f"<b>{sel}</b><br>{d['dir']}",
+            tooltip="Objetivo Evaluado",
+            icon=folium.Icon(color="blue", icon="building", prefix="fa")
+        ).add_to(m)
+
+        for com, dist, coords_com in comisarias_cercanas:
+            folium.Marker(
+                location=[float(coords_com[0]), float(coords_com[1])],
+                popup=f"<b>Comisaría:</b> {com}<br>Distancia: {dist}m",
+                tooltip=f"Comisaría: {com} ({dist}m)",
+                icon=folium.Icon(color="red", icon="shield", prefix="fa")
+            ).add_to(m)
+
+        for hosp, dist, coords_hosp in hospitales_cercanos:
+            folium.Marker(
+                location=[float(coords_hosp[0]), float(coords_hosp[1])],
+                popup=f"<b>Hospital:</b> {hosp}<br>Distancia: {dist}m",
+                tooltip=f"Hospital: {hosp} ({dist}m)",
+                icon=folium.Icon(color="green", icon="hospital-o", prefix="fa")
+            ).add_to(m)
+
+        st_folium(m, width=700, height=450)
+
+        st.markdown("---")
+        st.subheader("🚨 Detalle de Puntos de Apoyo Cercanos")
+        
+        col_c, col_h = st.columns(2)
+        with col_c:
+            st.markdown("#### 👮 Comisarías Más Cercanas")
+            for idx, (com, dist, _) in enumerate(comisarias_cercanas, 1):
+                st.info(f"**{idx}.** {com} — *{dist} metros*")
+                
+        with col_h:
+            st.markdown("#### 🏥 Hospitales Más Cercanos")
+            for idx, (hosp, dist, _) in enumerate(hospitales_cercanos, 1):
+                st.info(f"**{idx}.** {hosp} — *{dist} metros*")
+
+        # Guardar en sesión para el reporte PDF con estructura segura
+        datos_actuales = {
+            "nombre": sel, 
+            "dir": d['dir'], 
+            "coords": d['coords'], 
+            "entradas": total_entradas,
+            "comisarias": [(com, dist) for com, dist, _ in comisarias_cercanas], 
+            "hospitales": [(hosp, dist) for hosp, dist, _ in hospitales_cercanos],
+            "clima": clima_actual, 
+            "fecha": datetime.now().strftime('%d/%m/%Y %H:%M')
+        }
+        st.session_state["actual"] = datos_actuales
+
+        # Registrar en el historial de auditorías si no está repetido como último
+        if not st.session_state["historial_auditorias"] or st.session_state["historial_auditorias"][-1]["nombre"] != sel:
+            st.session_state["historial_auditorias"].append(datos_actuales)
+            if len(st.session_state["historial_auditorias"]) > 5:
+                st.session_state["historial_auditorias"].pop(0)
 
 
 # --- 2. REPORTE PDF INSTITUCIONAL ---
 elif menu == "📄 Reporte PDF Institucional":
     st.header("📄 Generador de Reporte Técnico Extendido (Blanco y Negro)")
     
+    # Historial rápido de auditorías recientes
+    if st.session_state["historial_auditorias"]:
+        st.markdown("### 🕒 Historial de Edificios Consultados Recentemente")
+        nombres_historial = [h["nombre"] for h in st.session_state["historial_auditorias"]]
+        sel_historial = st.selectbox("Seleccione del historial para cargar sus datos:", nombres_historial)
+        if st.button("Cargar desde Historial"):
+            for h in st.session_state["historial_auditorias"]:
+                if h["nombre"] == sel_historial:
+                    st.session_state["actual"] = h
+                    st.success(f"¡Datos de '{sel_historial}' cargados correctamente para generar el reporte!")
+                    st.rerun()
+        st.markdown("---")
+
     if "actual" in st.session_state:
         dat = st.session_state["actual"]
         responsable = st.text_input("Nombre y Apellido del Responsable Técnico Emisor", "Lic. Supervisor Operativo SPPRO")
@@ -238,6 +295,14 @@ elif menu == "📄 Reporte PDF Institucional":
             nombre_archivo = f"Informe_Detallado_{dat['nombre'].replace(' ', '_')}.pdf"
             
             st.success("¡Reporte generado con éxito en memoria!")
+            
+            # --- NUEVO: PREVISUALIZACIÓN DEL PDF EN PANTALLA ---
+            st.markdown("### 👁️ Vista Previa del Reporte PDF")
+            base64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
+            pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="500px" type="application/pdf"></iframe>'
+            st.markdown(pdf_display, unsafe_allow_html=True)
+            
+            st.markdown("---")
             st.download_button(
                 label="Descargar Reporte PDF Detallado (B/N)",
                 data=pdf_bytes,
