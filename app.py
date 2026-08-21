@@ -3,6 +3,8 @@ import streamlit as st
 import math
 from datetime import datetime
 from fpdf import FPDF
+import folium
+from streamlit_folium import st_folium
 from datos import edificios_db, comisarias_db, hospitales_db
 from clima import obtener_clima_caba
 
@@ -36,7 +38,7 @@ def encontrar_multiples_cercanos(coords_ed, db, cantidad=2):
     distancias = []
     for nombre, coords in db.items():
         dist = calcular_distancia(coords_ed, coords)
-        distancias.append((nombre, dist))
+        distancias.append((nombre, dist, coords))
     distancias.sort(key=lambda x: x[1])
     return distancias[:cantidad]
 
@@ -67,33 +69,75 @@ if menu == "🏢 Edificios & Puntos de Apoyo":
             st.success("¡Acceso adicional incorporado exitosamente al sistema!")
             st.rerun()
 
-    # Cálculo exacto de los 2 hospitales y 2 comisarías más cercanas
+    # Cálculo exacto de los 2 hospitales y 2 comisarías más cercanas (ahora guardamos también las coordenadas)
     comisarias_cercanas = encontrar_multiples_cercanos(coords_ed, comisarias_db, 2)
     hospitales_cercanos = encontrar_multiples_cercanos(coords_ed, hospitales_db, 2)
 
     st.markdown("---")
-    st.subheader("🚨 Puntos de Apoyo Cercanos (2 Comisarías y 2 Hospitales)")
+    st.subheader("🗺️ Mapa Operativo y Puntos de Apoyo en CABA")
+
+    # --- MAPA INTERACTIVO CON FOLIUM ---
+    m = folium.Map(location=coords_ed, zoom_start=15)
+
+    # Marcador del Edificio Principal (Azul)
+    folium.Marker(
+        location=coords_ed,
+        popup=f"<b>{sel}</b><br>{d['dir']}",
+        tooltip="Objetivo Evaluado",
+        icon=folium.Icon(color="blue", icon="building", prefix="fa")
+    ).add_to(m)
+
+    # Marcadores de Comisarías (Rojo)
+    for com, dist, coords_com in comisarias_cercanas:
+        folium.Marker(
+            location=[float(coords_com[0]), float(coords_com[1])],
+            popup=f"<b>Comisaría:</b> {com}<br>Distancia: {dist}m",
+            tooltip=f"Comisaría: {com} ({dist}m)",
+            icon=folium.Icon(color="red", icon="shield", prefix="fa")
+        ).add_to(m)
+
+    # Marcadores de Hospitales (Verde)
+    for hosp, dist, coords_hosp in hospitales_cercanos:
+        folium.Marker(
+            location=[float(coords_hosp[0]), float(coords_hosp[1])],
+            popup=f"<b>Hospital:</b> {hosp}<br>Distancia: {dist}m",
+            tooltip=f"Hospital: {hosp} ({dist}m)",
+            icon=folium.Icon(color="green", icon="hospital-o", prefix="fa")
+        ).add_to(m)
+
+    # Renderizar el mapa en Streamlit
+    st_folium(m, width=700, height=450)
+
+    st.markdown("---")
+    st.subheader("🚨 Detalle de Puntos de Apoyo Cercanos")
     
     col_c, col_h = st.columns(2)
     with col_c:
         st.markdown("#### 👮 Comisarías Más Cercanas")
-        for idx, (com, dist) in enumerate(comisarias_cercanas, 1):
+        for idx, (com, dist, _) in enumerate(comisarias_cercanas, 1):
             st.info(f"**{idx}.** {com} — *{dist} metros*")
             
     with col_h:
         st.markdown("#### 🏥 Hospitales Más Cercanos")
-        for idx, (hosp, dist) in enumerate(hospitales_cercanos, 1):
+        for idx, (hosp, dist, _) in enumerate(hospitales_cercanos, 1):
             st.info(f"**{idx}.** {hosp} — *{dist} metros*")
 
-    # Guardar en sesión para el reporte PDF
+    # Guardar en sesión para el reporte PDF (limpiando las coordenadas para que mantenga el formato original)
     st.session_state["actual"] = {
         "nombre": sel, "dir": d['dir'], "coords": d['coords'], "entradas": total_entradas,
-        "comisarias": comisarias_cercanas, "hospitales": hospitales_cercanos,
+        "comisarias": [(c[0], c[1]) for c in comisarias_cercanas], 
+        "hospitales": [(h[0], h[1]) for h[2] in hospitales_cercanos], # Ajustado para conservar nombre y distancia
         "clima": clima_actual, "fecha": datetime.now().strftime('%d/%m/%Y %H:%M')
     }
 
+# Corrección segura para la estructura de tu tupla en hospitales dentro de la sesión:
+# (Nota: Aseguramos que los datos guarden solo (nombre, distancia) para el PDF)
+if "actual" in st.session_state:
+    st.session_state["actual"]["hospitales"] = [(hosp, dist) for hosp, dist, _ in hospitales_cercanos]
+    st.session_state["actual"]["comisarias"] = [(com, dist) for com, dist, _ in comisarias_cercanas]
 
-# --- 2. REPORTE PDF INSTITUCIONAL (EN BLANCO Y NEGRO, MUY DETALLADO) ---
+
+# --- 2. REPORTE PDF INSTITUCIONAL ---
 elif menu == "📄 Reporte PDF Institucional":
     st.header("📄 Generador de Reporte Técnico Extendido (Blanco y Negro)")
     
@@ -102,7 +146,6 @@ elif menu == "📄 Reporte PDF Institucional":
         responsable = st.text_input("Nombre y Apellido del Responsable Técnico Emisor", "Lic. Supervisor Operativo SPPRO")
         
         if st.button("Generar Reporte PDF Detallado"):
-            # Función auxiliar para limpiar emojis y símbolos incompatibles con FPDF estándar
             def limpiar_texto(texto):
                 if not isinstance(texto, str):
                     texto = str(texto)
@@ -113,10 +156,8 @@ elif menu == "📄 Reporte PDF Institucional":
             pdf = FPDF()
             pdf.add_page()
             
-            # Estricto Blanco y Negro (Sin colores)
             pdf.set_text_color(0, 0, 0)
             
-            # Encabezado institucional formal
             pdf.set_font("Arial", 'B', 14)
             pdf.cell(190, 7, "SISTEMA DE PROTECCION Y EVALUACION EDILICIA (SPPRO CABA)", ln=True, align="C")
             pdf.set_font("Arial", 'B', 10)
@@ -126,7 +167,6 @@ elif menu == "📄 Reporte PDF Institucional":
             pdf.line(10, pdf.get_y(), 200, pdf.get_y())
             pdf.ln(4)
             
-            # Metadatos del Documento
             clima_limpio = limpiar_texto(dat['clima'])
             pdf.set_font("Arial", 'B', 9)
             pdf.cell(95, 5, f"Codigo de Auditoria: SPPRO-{datetime.now().strftime('%Y%m%d%H%M')}")
@@ -135,7 +175,6 @@ elif menu == "📄 Reporte PDF Institucional":
             
             pdf.ln(3)
             
-            # Sección 1: Información Catastral Ampliada
             pdf.set_font("Arial", 'B', 10)
             pdf.cell(190, 6, "1. DATOS CATASTRALES Y CARACTERISTICAS EDILICIAS", ln=True)
             pdf.set_font("Arial", '', 9)
@@ -151,11 +190,12 @@ elif menu == "📄 Reporte PDF Institucional":
             
             pdf.ln(4)
             
-            # Sección 2: Detalle Completo de los 2 Hospitales Cercanos
             pdf.set_font("Arial", 'B', 10)
-            pdf.cell(190, 6, "2. ANALISIS DE COBERTURA SANITARIA (HOSPITALES CERCANOS)", ln=True)
+            pdf.cell(190, 6, "2. ANALISIS DE COOPERACION E INTERVENCION (HOSPITALES Y COMISARIAS)", ln=True)
+            
             pdf.set_font("Arial", 'B', 9)
-            pdf.cell(120, 5, "Establecimiento Medico de Salud CABA", border=1, align="C")
+            pdf.cell(190, 5, "Establecimientos Medicos de Salud CABA mas cercanos:", ln=True)
+            pdf.cell(120, 5, "Establecimiento Medico", border=1, align="C")
             pdf.cell(70, 5, "Distancia Lineal Calculada", border=1, align="C", ln=1)
             
             pdf.set_font("Arial", '', 9)
@@ -163,13 +203,11 @@ elif menu == "📄 Reporte PDF Institucional":
                 pdf.cell(120, 6, f" {limpiar_texto(hosp)}", border=1)
                 pdf.cell(70, 6, f" {dist} metros", border=1, align="C", ln=1)
                 
-            pdf.ln(4)
+            pdf.ln(3)
             
-            # Sección 3: Detalle Completo de las 2 Comisarías Cercanas
-            pdf.set_font("Arial", 'B', 10)
-            pdf.cell(190, 6, "3. ANALISIS DE COBERTURA DE SEGURIDAD (COMISARIAS CERCANAS)", ln=True)
             pdf.set_font("Arial", 'B', 9)
-            pdf.cell(120, 5, "Dependencia Policial (Policia de la Ciudad)", border=1, align="C")
+            pdf.cell(190, 5, "Dependencias Policiales (Policia de la Ciudad) mas cercanas:", ln=True)
+            pdf.cell(120, 5, "Dependencia Policial", border=1, align="C")
             pdf.cell(70, 5, "Distancia Lineal Calculada", border=1, align="C", ln=1)
             
             pdf.set_font("Arial", '', 9)
@@ -179,13 +217,11 @@ elif menu == "📄 Reporte PDF Institucional":
                 
             pdf.ln(4)
             
-            # Sección 4: Observaciones Técnicas Detalladas
             pdf.set_font("Arial", 'B', 10)
-            pdf.cell(190, 6, "4. DICTAMEN TECNICO Y OBSERVACIONES DE EVACUACION", ln=True)
+            pdf.cell(190, 6, "3. DICTAMEN TECNICO Y OBSERVACIONES", ln=True)
             pdf.set_font("Arial", '', 8.5)
-            pdf.multi_cell(190, 4.5, "El presente documento tecnico detalla de forma integral los recursos operativos de respuesta inmediata circundantes al objetivo. Se han validado tanto las vias de acceso perimetral como los tiempos estimados de arribo de unidades sanitarias y moviles policiales de la Ciudad Autonoma de Buenos Aires. Este reporte constituye una herramienta de control normativo y de seguridad bajo potestad del Administrador del Sistema SPPRO.")
+            pdf.multi_cell(190, 4.5, "El presente documento tecnico detalla de forma integral los recursos operativos de respuesta inmediata circundantes al objetivo. Se han validado tanto las vias de acceso perimetral como los tiempos estimados de arribo de unidades sanitarias y moviles policiales de la Ciudad Autonoma de Buenos Aires.")
             
-            # Bloque de Firma y Cierre
             pdf.ln(20)
             pdf.set_font("Arial", '', 9)
             pdf.cell(100)
@@ -195,7 +231,6 @@ elif menu == "📄 Reporte PDF Institucional":
             pdf.cell(100)
             pdf.cell(80, 4, "Firma y Sello - Administrador SPPRO", ln=True, align="C")
             
-            # Generación del PDF en memoria para descarga estable
             pdf_bytes = pdf.output(dest='S')
             if isinstance(pdf_bytes, str):
                 pdf_bytes = pdf_bytes.encode('latin-1')
@@ -204,7 +239,7 @@ elif menu == "📄 Reporte PDF Institucional":
             
             st.success("¡Reporte generado con éxito en memoria!")
             st.download_button(
-                label="📥 Descargar Reporte PDF Detallado (B/N)",
+                label="Descargar Reporte PDF Detallado (B/N)",
                 data=pdf_bytes,
                 file_name=nombre_archivo,
                 mime="application/pdf"
